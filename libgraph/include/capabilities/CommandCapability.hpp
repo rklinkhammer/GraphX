@@ -56,8 +56,8 @@ struct CommandDescriptor {
 struct CommandRequest {
     CommandName name;
     nlohmann::json arguments = nlohmann::json::object();
-    std::optional<graph::GraphConfigurationSnapshot> configuration;
-    std::optional<std::uint64_t> coordinator_revision;
+    std::optional<graph::GraphConfigurationSnapshot> configuration = std::nullopt;
+    std::optional<std::uint64_t> coordinator_revision = std::nullopt;
 };
 
 struct CommandOperationResult {

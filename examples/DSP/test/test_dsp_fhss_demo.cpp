@@ -45,6 +45,14 @@
 
 namespace {
 
+constexpr int ExecutorTimeoutSeconds(const int native_seconds) {
+#if defined(__SANITIZE_ADDRESS__)
+  return native_seconds * 5;
+#else
+  return native_seconds;
+#endif
+}
+
 std::string ShellQuote(const std::filesystem::path &path) {
   std::string raw = path.string();
   std::string quoted{"'"};
@@ -201,7 +209,8 @@ TEST(DspFhssDevelopmentEnvironmentTest,
       ShellQuote(std::filesystem::path(DSP_FHSS_DEMO_MESSAGE_PATH)) +
       " --channel-iq-dir " + ShellQuote(capture_dir) +
       " --channel-iq-indices 24 --summary-json " + ShellQuote(summary_path) +
-      " --executor-timeout-s 12 2>&1";
+      " --executor-timeout-s " + std::to_string(ExecutorTimeoutSeconds(12)) +
+      " 2>&1";
 
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;
@@ -237,7 +246,8 @@ TEST(DspFhssDemoExecutableTest, RunsDefaultChannelizedGraphAndWritesSummary) {
       " --plugin-dir " +
       ShellQuote(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY)) +
       " --summary-json " + ShellQuote(summary_path) +
-      " --decoded-pulse-limit 3 --executor-timeout-s 30 2>&1";
+      " --decoded-pulse-limit 3 --executor-timeout-s " +
+      std::to_string(ExecutorTimeoutSeconds(30)) + " 2>&1";
 
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;
@@ -292,7 +302,8 @@ TEST(DspFhssDemoExecutableTest,
       " --plugin-dir " +
       ShellQuote(std::filesystem::path(DSP_PLUGIN_OUTPUT_DIRECTORY)) +
       " --summary-json " + ShellQuote(summary_path) +
-      " --executor-timeout-s 8 2>&1";
+      " --executor-timeout-s " + std::to_string(ExecutorTimeoutSeconds(8)) +
+      " 2>&1";
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;
   ASSERT_TRUE(std::filesystem::exists(summary_path)) << result.output;
@@ -321,7 +332,8 @@ TEST(DspFhssDemoExecutableTest, AcceptsExternalMessageJsonForInvestigation) {
       ShellQuote(std::filesystem::path(DSP_FHSS_DEMO_MESSAGE_PATH)) +
       " --summary-json " + ShellQuote(summary_path) +
       " --effective-config-json " + ShellQuote(effective_path) +
-      " --decoded-pulse-limit 4 --executor-timeout-s 12 2>&1";
+      " --decoded-pulse-limit 4 --executor-timeout-s " +
+      std::to_string(ExecutorTimeoutSeconds(12)) + " 2>&1";
 
   const auto result = RunCommand(command);
   EXPECT_EQ(result.exit_code, 0) << result.output;

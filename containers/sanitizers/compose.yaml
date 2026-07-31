@@ -1,0 +1,20 @@
+services:
+  sanitizer:
+    image: graphx-sanitizers:local
+    build:
+      context: ../..
+      dockerfile: containers/sanitizers/Dockerfile
+    environment:
+      GRAPHX_BUILD_JOBS: ${GRAPHX_BUILD_JOBS:-2}
+      LOG4CXX_CONFIGURATION: /workspace/GraphX/containers/sanitizers/log4cxx.properties
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1:abort_on_error=1
+      LSAN_OPTIONS: exitcode=23:print_suppressions=0:report_objects=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    volumes:
+      - sanitizer-build:/workspace/GraphX/build-ninja/ninja-debug-linux-sanitized
+      - sanitizer-ccache:/root/.cache/ccache
+    init: true
+
+volumes:
+  sanitizer-build:
+  sanitizer-ccache:

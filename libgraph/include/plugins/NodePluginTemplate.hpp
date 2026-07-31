@@ -757,8 +757,12 @@ struct PluginPolicy {
     static const char* GetInputPortName(NodePluginInstance<NodeT>* inst,
                                         std::size_t id) {
         try {
-            std::vector<graph::PortMetadata> md = inst->node->GetInputPortMetadata();
-             if (id < md.size()) return strdup(md[id].port_name.c_str());
+            const auto md = inst->node->GetInputPortMetadata();
+            if (id < md.size()) {
+                thread_local std::string port_name;
+                port_name = md[id].port_name;
+                return port_name.c_str();
+            }
         } catch (...) {}
         return "unknown";
     }
@@ -766,8 +770,12 @@ struct PluginPolicy {
     static const char* GetOutputPortName(NodePluginInstance<NodeT>* inst,
                                          std::size_t id) {
         try {
-            auto md = inst->node->GetOutputPortMetadata();
-            if (id < md.size()) return strdup(md[id].port_name.c_str());
+            const auto md = inst->node->GetOutputPortMetadata();
+            if (id < md.size()) {
+                thread_local std::string port_name;
+                port_name = md[id].port_name;
+                return port_name.c_str();
+            }
         } catch (...) {}
         return "unknown";
     }

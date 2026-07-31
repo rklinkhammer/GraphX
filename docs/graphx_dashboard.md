@@ -45,9 +45,11 @@ flowchart LR
 ```
 
 The graph JSON is the topology source of truth. Node IDs, node types, the node
-set, edges, ports, and hierarchy are structural data and are not changed by
-the Phase 2B dashboard. The only management-layer mutation is replacement of
-an existing node's `node_config`.
+set, edges, and ports are authoritative structural data and are not changed by
+the dashboard. Optional `presentation.groups` metadata describes a
+presentation-only hierarchy; it has no graph-construction or execution
+semantics. The only management-layer mutation is replacement of an existing
+node's `node_config`.
 
 Every `graphx-dashboard` instance has one `GraphExecutor`. Opening the page
 does not initialize or run it: the executor begins configured and changes
@@ -198,6 +200,62 @@ invalid plugin.
 
 `--enable-execution` is removed. `--plugins` continues to supply the provider
 search path used during initialization.
+
+### Phase 2 presentation hierarchy
+
+The generic frontend may interpret this optional execution-neutral document
+section:
+
+```json
+{
+  "presentation": {
+    "groups": [
+      {
+        "id": "processing-bank",
+        "label": "Processing bank",
+        "members": ["node-a", "node-b"],
+        "parent": "optional-parent-group-id",
+        "layout": "layered",
+        "collapsed_by_default": false
+      }
+    ]
+  }
+}
+```
+
+The accepted layout values are `layered`, `grid`, `fanout`, and `fanin`.
+Groups form an acyclic forest. Group IDs and direct node memberships are
+unique, parents must exist, and every member must name an authoritative node.
+Unknown fields, malformed values, duplicate or overlapping membership,
+unknown references, cycles, excessive depth, and numeric-bound violations
+reject all grouping atomically. The page reports one stable diagnostic and
+retains exact semantic raw-topology inspection; it never repairs or partially
+applies metadata.
+
+The locked limits are 256 groups, depth 12, 2,048 direct members per group,
+10,000 total direct memberships, 10,000 authoritative edges per bundle,
+20,000 node-plus-edge items per layout invocation, 100,000 cumulative
+compound-layout work units, and 25,000 visible node/edge/bundle details.
+Bounds are checked before expensive presentation work.
+
+Collapsed crossing edges are grouped only by their current visible source and
+target. A multi-edge crossing becomes a presentation bundle with a
+collision-free canonical ID and a sorted exact authoritative member list.
+Internal edges remain hidden membership and never become self-bundles.
+Presentation groups and bundles use presentation-only boundary handles and
+are never serialized or PATCHed.
+
+Authoritative node/edge selection is maintained separately from
+group/bundle selection. Collapse and isolation retain valid authoritative
+selection, mark its containing group, and restore the exact object on
+expansion or in **Raw topology** mode. Breadcrumb, isolation, minimap, layout,
+collapse, and expansion state is local to the page. A node-config PATCH
+continues to contain only `node_config` and preserves the top-level
+`presentation` document.
+
+The operator qualification procedure and exact generic/FHSS expectations are
+documented in
+[`graphx_dashboard_phase2_operator_test.md`](graphx_dashboard_phase2_operator_test.md).
 
 ### Web command surface and CLI deprecation
 

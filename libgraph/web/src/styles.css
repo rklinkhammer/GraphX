@@ -144,7 +144,11 @@ main {
 }
 
 .execution-actions,
-.topology-toolbar {
+.topology-toolbar,
+.group-card-actions,
+.inspector-actions,
+.isolation-actions,
+.topology-mode {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
@@ -212,6 +216,51 @@ main {
   color: #5b667b;
 }
 
+.hierarchy-navigation {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #c8d0df;
+  border-radius: 0.5rem;
+  background: #f7f8fc;
+}
+
+.topology-mode button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #51318b;
+  background: #51318b;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.breadcrumbs button {
+  min-height: auto;
+  padding: 0.25rem 0.45rem;
+  color: #244eae;
+  background: transparent;
+}
+
+.breadcrumbs button[aria-current="page"] {
+  color: #fff;
+  border-color: #51318b;
+  background: #51318b;
+}
+
+.isolation-actions {
+  align-items: center;
+}
+
+.grouped-counts {
+  color: #4d5870;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
 .topology-shell {
   border: 1px solid #bec8da;
   border-radius: 0.55rem;
@@ -244,6 +293,117 @@ main {
 .graph-node-card.selected {
   border-color: #d76b00;
   box-shadow: 0 0 0 3px rgb(229 129 0 / 30%);
+}
+
+.graph-group-card {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border: 2px solid #7253a6;
+  border-radius: 0.65rem;
+  background: rgb(238 232 250 / 58%);
+  box-shadow: 0 0.3rem 1rem rgb(55 34 86 / 14%);
+}
+
+.graph-group-card.collapsed {
+  background: #f0eafa;
+}
+
+.graph-group-card.expanded {
+  border-style: dashed;
+  background: rgb(238 232 250 / 30%);
+}
+
+.graph-group-card.selected {
+  border-color: #d76b00;
+  box-shadow: 0 0 0 3px rgb(229 129 0 / 30%);
+}
+
+.graph-group-card.contains-selection {
+  outline: 4px solid #e58100;
+  outline-offset: 3px;
+}
+
+.group-card-header {
+  min-height: 62px;
+  padding: 0.55rem 0.7rem;
+  color: #fff;
+  border-radius: 0.45rem 0.45rem 0 0;
+  background: #51318b;
+}
+
+.group-card-header strong,
+.group-card-header span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.group-card-header span,
+.group-card-counts {
+  color: #eee8ff;
+  font-size: 0.72rem;
+}
+
+.group-card-actions {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+}
+
+.group-card-actions button {
+  min-height: 1.65rem;
+  padding: 0.18rem 0.38rem;
+  color: #3e246e;
+  font-size: 0.63rem;
+}
+
+.group-expanded-note {
+  margin: 0.35rem 0.55rem;
+  color: #5f4c7e;
+  font-size: 0.7rem;
+}
+
+.presentation-boundary-handle {
+  width: 13px;
+  height: 13px;
+  border-color: #51318b;
+  background: #fff;
+}
+
+.bundle-edge path {
+  stroke: #7253a6;
+  stroke-width: 3px;
+  stroke-dasharray: 7 5;
+}
+
+.bundle-edge.selected path {
+  stroke: #d76b00;
+  stroke-width: 4px;
+}
+
+.minimap-keyboard-control {
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  z-index: 5;
+  width: 200px;
+  height: 150px;
+  border-radius: 0.35rem;
+}
+
+.minimap-keyboard-control:focus {
+  outline: 4px solid #e58100;
+  outline-offset: 4px;
+}
+
+.minimap-keyboard-control .react-flow__minimap {
+  position: static;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 1px solid #8e9bb2;
+  border-radius: 0.35rem;
+  background: rgb(255 255 255 / 90%);
 }
 
 .graph-node-card > header {
@@ -341,6 +501,28 @@ dd {
 .identity {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
+}
+
+.bundle-members {
+  padding-left: 1.25rem;
+}
+
+.bundle-members li {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.7rem 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #d5dbea;
+}
+
+.bundle-members button {
+  justify-self: start;
+  min-height: auto;
+  padding: 0.3rem 0.5rem;
+}
+
+.inspector-actions {
+  margin-top: 0.9rem;
 }
 
 pre,

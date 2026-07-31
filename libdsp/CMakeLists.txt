@@ -70,6 +70,11 @@ if(SOURCES)
         # Consumers of this static library must link the TSAN runtime.
         target_link_options(dsp PUBLIC -fsanitize=thread)
     endif()
+    if(ENABLE_ASAN_UBSAN)
+        target_compile_options(dsp PRIVATE
+            -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(dsp PUBLIC -fsanitize=address,undefined)
+    endif()
 else()
     # Create empty interface library if no sources (placeholder for future development)
     add_library(dsp INTERFACE)

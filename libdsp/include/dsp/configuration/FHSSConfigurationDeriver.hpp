@@ -10,19 +10,19 @@ namespace dsp::configuration {
 /// @brief Authoritative configuration provided by user (18 fields)
 struct SourceConfiguration {
     std::vector<std::string> messages;
-    double iq_center_frequency_hz;
+    double iq_center_frequency_hz = 0.0;
     std::vector<double> iq_offsets;
     std::string idle_mode;
-    int32_t idle_duration_samples;
-    double occupied_bandwidth_hz;
-    double max_abs_cfo_hz;
-    bool enable_noise;
-    bool enable_doppler;
-    bool enable_multipath;
-    bool allow_overlap;
+    int32_t idle_duration_samples = 0;
+    double occupied_bandwidth_hz = 0.0;
+    double max_abs_cfo_hz = 0.0;
+    bool enable_noise = false;
+    bool enable_doppler = false;
+    bool enable_multipath = false;
+    bool allow_overlap = false;
     std::string message_id;
-    int32_t transmit_start_sample;
-    int32_t frequency_index;
+    int32_t transmit_start_sample = 0;
+    int32_t frequency_index = 0;
     std::string value;
     std::string role;
 
@@ -35,19 +35,19 @@ struct SourceConfiguration {
 struct EffectiveConfiguration {
     // Authoritative fields (inherited from source)
     std::vector<std::string> messages;
-    double iq_center_frequency_hz;
+    double iq_center_frequency_hz = 0.0;
     std::vector<double> iq_offsets;
     std::string idle_mode;
-    int32_t idle_duration_samples;
-    double occupied_bandwidth_hz;
-    double max_abs_cfo_hz;
-    bool enable_noise;
-    bool enable_doppler;
-    bool enable_multipath;
-    bool allow_overlap;
+    int32_t idle_duration_samples = 0;
+    double occupied_bandwidth_hz = 0.0;
+    double max_abs_cfo_hz = 0.0;
+    bool enable_noise = false;
+    bool enable_doppler = false;
+    bool enable_multipath = false;
+    bool allow_overlap = false;
     std::string message_id;
-    int32_t transmit_start_sample;
-    int32_t frequency_index;
+    int32_t transmit_start_sample = 0;
+    int32_t frequency_index = 0;
     std::string value;
     std::string role;
 
@@ -64,7 +64,7 @@ struct EffectiveConfiguration {
     std::vector<int32_t> pulse_frequency_indices_channelizer;
 
     // Metadata
-    uint64_t revision;  // Monotonically increasing revision number
+    uint64_t revision = 0;  // Monotonically increasing revision number
     std::string etag;   // Format: "Rev:<revision>" for If-Match preconditions
 
     nlohmann::json to_json() const;

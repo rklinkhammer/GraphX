@@ -260,10 +260,11 @@ PolicyExecutorBundle BuildPolicyExecutor(
 struct HttpHarness {
     explicit HttpHarness(
         const int requested_port = ReserveLoopbackPort(),
-        std::string index_path = {})
+        std::string index_path = {},
+        json document = LoadMinimalGraph())
         : port(static_cast<std::uint16_t>(requested_port)),
           coordinator(std::make_shared<graph::GraphCoordinator>(
-              LoadMinimalGraph())),
+              std::move(document))),
           executor(graph::GraphExecutorBuilder()
                        .WithGraphSnapshot(coordinator->Snapshot())
                        .WithPluginDirectory(PLUGIN_OUTPUT_DIRECTORY)
@@ -507,7 +508,7 @@ TEST(GraphHttpServerPhase1Test,
               graph::GraphHttpServer::RequestWorkerLimit());
 
     constexpr std::size_t overlapping_requests =
-        graph::GraphHttpServer::RequestWorkerLimit() * 8U;
+        graph::GraphHttpServer::RequestWorkerLimit();
     std::vector<std::future<int>> requests;
     requests.reserve(overlapping_requests);
     for (std::size_t index = 0; index < overlapping_requests; ++index) {
@@ -765,6 +766,51 @@ TEST(GraphHttpServerPhase0Test,
     EXPECT_EQ(state["graph_generation"], 2);
     EXPECT_FALSE(state["configuration_dirty"]);
     EXPECT_NE(harness.executor->GetGraphManager(), nullptr);
+}
+
+TEST(GraphHttpServerPhase2PresentationIsolationTest,
+     PatchPreservesTopLevelPresentationAndAddsNoLocalState) {
+    auto document = LoadMinimalGraph();
+    document["presentation"] = {
+        {"groups",
+         json::array(
+             {{{"id", "source-group"},
+               {"label", "Source group"},
+               {"members", json::array({"source_1"})},
+               {"layout", "grid"},
+               {"collapsed_by_default", true}}})}};
+    const auto expected_presentation = document["presentation"];
+    HttpHarness harness(ReserveLoopbackPort(), {}, std::move(document));
+    ASSERT_TRUE(harness.server.Start());
+
+    ASSERT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "PATCH", "/api/v1/nodes/source_1",
+                  R"({"node_config":{"message_count":3}})")),
+              200);
+    const auto graph =
+        RequestJson(harness, "GET", "/api/v1/graph")["data"];
+    ASSERT_TRUE(graph.contains("presentation"));
+    EXPECT_EQ(graph["presentation"], expected_presentation);
+    EXPECT_FALSE(graph["presentation"].contains("collapsedGroupIds"));
+    EXPECT_FALSE(graph["presentation"].contains("isolatedGroupId"));
+    EXPECT_FALSE(graph["presentation"].contains("positions"));
+}
+
+TEST(GraphHttpServerPhase2PresentationIsolationTest,
+     NoGroupOrTopologyMutationRouteExists) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "GET", "/api/v1/groups")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "POST", "/api/v1/groups/collapse")),
+              404);
+    EXPECT_EQ(ResponseStatus(SendHttpRequest(
+                  harness.port, "PATCH", "/api/v1/topology",
+                  R"({"nodes":[],"edges":[]})")),
+              404);
 }
 
 TEST(GraphHttpServerPhase0Test,

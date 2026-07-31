@@ -1,0 +1,135 @@
+{
+  "name": "GenericGroupedSplitMerge",
+  "description": "Domain-neutral nested split/merge hierarchy acceptance fixture.",
+  "num_threads": 2,
+  "presentation": {
+    "groups": [
+      {
+        "id": "pipeline",
+        "label": "Processing pipeline",
+        "members": ["merge_1", "split_1"],
+        "layout": "layered",
+        "collapsed_by_default": false
+      },
+      {
+        "id": "inputs",
+        "label": "Input sources",
+        "members": ["source_1", "source_2"],
+        "parent": "pipeline",
+        "layout": "grid",
+        "collapsed_by_default": false
+      },
+      {
+        "id": "parallel-stage",
+        "label": "Parallel stage",
+        "members": ["interior_1", "interior_2"],
+        "parent": "pipeline",
+        "layout": "fanout",
+        "collapsed_by_default": true
+      },
+      {
+        "id": "outputs",
+        "label": "Output stage",
+        "members": ["merge_2", "sink_1", "sink_2"],
+        "parent": "pipeline",
+        "layout": "fanin",
+        "collapsed_by_default": false
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "source_1",
+      "type": "SourceTestNode",
+      "name": "source_1",
+      "node_config": {"message_count": 10}
+    },
+    {
+      "id": "source_2",
+      "type": "SourceTestNode",
+      "name": "source_2",
+      "node_config": {"message_count": 10}
+    },
+    {"id": "merge_1", "type": "MergeTestNode", "name": "merge_1"},
+    {"id": "split_1", "type": "SplitTestNode", "name": "split_1"},
+    {
+      "id": "interior_1",
+      "type": "InteriorTestNode",
+      "name": "interior_1"
+    },
+    {
+      "id": "interior_2",
+      "type": "InteriorTestNode",
+      "name": "interior_2"
+    },
+    {"id": "merge_2", "type": "MergeTestNode", "name": "merge_2"},
+    {
+      "id": "sink_1",
+      "type": "SinkTestNode",
+      "name": "sink_1",
+      "node_config": {"expected_message_count": 10}
+    },
+    {
+      "id": "sink_2",
+      "type": "SinkTestNode",
+      "name": "sink_2",
+      "node_config": {"expected_message_count": 10}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source_1",
+      "source_port_name": "Data",
+      "target_node_id": "merge_1",
+      "target_port_name": "In0"
+    },
+    {
+      "source_node_id": "source_2",
+      "source_port_name": "Data",
+      "target_node_id": "merge_1",
+      "target_port_name": "In1"
+    },
+    {
+      "source_node_id": "merge_1",
+      "source_port_name": "Out",
+      "target_node_id": "split_1",
+      "target_port_name": "In"
+    },
+    {
+      "source_node_id": "split_1",
+      "source_port_name": "Out0",
+      "target_node_id": "interior_1",
+      "target_port_name": "Input"
+    },
+    {
+      "source_node_id": "split_1",
+      "source_port_name": "Out1",
+      "target_node_id": "interior_2",
+      "target_port_name": "Input"
+    },
+    {
+      "source_node_id": "interior_1",
+      "source_port_name": "Output",
+      "target_node_id": "merge_2",
+      "target_port_name": "In0"
+    },
+    {
+      "source_node_id": "interior_2",
+      "source_port_name": "Output",
+      "target_node_id": "merge_2",
+      "target_port_name": "In1"
+    },
+    {
+      "source_node_id": "merge_2",
+      "source_port_name": "Out",
+      "target_node_id": "sink_1",
+      "target_port_name": "State"
+    },
+    {
+      "source_node_id": "split_1",
+      "source_port_name": "Out0",
+      "target_node_id": "sink_2",
+      "target_port_name": "State"
+    }
+  ]
+}

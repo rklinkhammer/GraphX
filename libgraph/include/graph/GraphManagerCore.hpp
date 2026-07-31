@@ -126,11 +126,15 @@ public:
             detail::JoinNodesWithTimeout(nodes_, timeout);
             detail::JoinThreadPool(thread_pool_);
 
-            // Step 3: Cleanup wrappers before object destruction cascades.
+            // Step 3: Runtime-port adapters are edge-owned and must be released
+            // before their backing plugin nodes are destroyed.
+            detail::ReleaseEdges(edges_);
+
+            // Step 4: Destroy plugin instances while facade code is still loaded.
             detail::CleanupFacadeWrappers(nodes_);
 
-            // Step 4: Clear containers - this triggers destructors.
-            detail::ClearGraphContainers(edges_, nodes_);
+            // Step 5: Release the node wrappers and adapters.
+            detail::ReleaseNodes(nodes_);
         } catch (const std::exception& e) {
             LOG4CXX_ERROR(log4cxx::Logger::getLogger("graph.graph"),
                           "GraphManager cleanup failed: " << e.what());
@@ -1631,8 +1635,9 @@ public:
      * Always follow the Stop -> Join -> Clear sequence!
      */
     void Clear() {
-        edges_.clear();
-        nodes_.clear();
+        detail::ReleaseEdges(edges_);
+        detail::CleanupFacadeWrappers(nodes_);
+        detail::ReleaseNodes(nodes_);
         canonical_node_ids_.clear();
         initialized_.store(false, std::memory_order_release);
         started_.store(false, std::memory_order_release);

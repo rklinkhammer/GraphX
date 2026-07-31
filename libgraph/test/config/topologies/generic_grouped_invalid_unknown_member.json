@@ -1,0 +1,26 @@
+{
+  "name": "GenericGroupedInvalidUnknownMember",
+  "presentation": {
+    "groups": [
+      {
+        "id": "unknown-member",
+        "label": "Unknown member",
+        "members": ["missing"],
+        "layout": "fanout",
+        "collapsed_by_default": true
+      }
+    ]
+  },
+  "nodes": [
+    {"id": "source", "type": "Source"},
+    {"id": "sink", "type": "Sink"}
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

@@ -149,6 +149,11 @@ if(ENABLE_TSAN)
     target_compile_options(accelgraph PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
     target_link_options(accelgraph PRIVATE -fsanitize=thread)
 endif()
+if(ENABLE_ASAN_UBSAN)
+    target_compile_options(accelgraph PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(accelgraph PUBLIC -fsanitize=address,undefined)
+endif()
 
 add_subdirectory(plugins)
 

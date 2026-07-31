@@ -102,14 +102,15 @@ inline void CleanupFacadeWrappers(std::vector<std::shared_ptr<INode>>& nodes) {
     }
 }
 
-inline void ClearGraphContainers(std::vector<std::unique_ptr<IEdgeBase>>& edges,
-                                 std::vector<std::shared_ptr<INode>>& nodes) {
+inline void ReleaseEdges(std::vector<std::unique_ptr<IEdgeBase>>& edges) {
     try {
         edges.clear();
     } catch (...) {
         // Suppress exceptions during shutdown.
     }
+}
 
+inline void ReleaseNodes(std::vector<std::shared_ptr<INode>>& nodes) {
     try {
         nodes.clear();
     } catch (...) {

@@ -293,6 +293,10 @@ target_link_libraries(graphx_graph_cli PRIVATE graph gpu graphx_project_options)
 add_executable(graphx_graph_dashboard tools/graph-dashboard.cpp)
 set_target_properties(graphx_graph_dashboard PROPERTIES OUTPUT_NAME graphx-dashboard)
 target_link_libraries(graphx_graph_dashboard PRIVATE graph gpu graphx_project_options)
+target_compile_definitions(graphx_graph_dashboard PRIVATE
+    GRAPHX_DASHBOARD_BUILD_DIRECTORY="${CMAKE_BINARY_DIR}"
+    GRAPHX_DASHBOARD_SOURCE_INDEX="${CMAKE_SOURCE_DIR}/libgraph/resources/web/index.html"
+)
 if(NOT MSVC)
     target_compile_options(graphx_graph_cli PRIVATE -Werror)
     target_compile_options(graphx_graph_dashboard PRIVATE -Werror)

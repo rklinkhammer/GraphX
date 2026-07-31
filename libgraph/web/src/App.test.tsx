@@ -1,14 +1,30 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { adaptGraphDocument } from "./adapter";
-import App, { EdgeInspector } from "./App";
+import App, { BundleInspector, EdgeInspector } from "./App";
+import { adaptPresentationGroups } from "./hierarchy";
 import { layoutDisplayGraph } from "./layout";
+import { projectPresentation } from "./presentation";
 import empty from "./test/fixtures/empty.json";
 import malformedBranches from "./test/fixtures/malformed_branches.json";
 import malformed from "./test/fixtures/malformed.json";
 import numericPorts from "./test/fixtures/numeric_ports.json";
+import invalidGroups from "./test/fixtures/invalid_groups.json";
+
+const sourceRoot = resolve(process.cwd(), "../..");
+const groupedSplitMerge = JSON.parse(
+  readFileSync(
+    resolve(
+      sourceRoot,
+      "libgraph/test/config/topologies/generic_grouped_split_merge.json",
+    ),
+    "utf8",
+  ),
+) as Record<string, unknown>;
 
 const executionState = {
   state: "CONFIGURED",
@@ -67,6 +83,29 @@ function installApi(graph: unknown) {
   return { fetchMock, getGraphFetches: () => graphFetches };
 }
 
+function expectExactRawHandles(
+  container: HTMLElement,
+  graphDocument: unknown,
+): void {
+  const model = adaptGraphDocument(graphDocument);
+  for (const node of model.nodes) {
+    const element = [...container.querySelectorAll(".react-flow__node")].find(
+      (candidate) => candidate.getAttribute("data-id") === node.id,
+    );
+    expect(element, `missing canvas node ${node.id}`).not.toBeNull();
+    const actual = [...element!.querySelectorAll("[data-handleid]")]
+      .map((handle) => handle.getAttribute("data-handleid"))
+      .sort();
+    const expected = [...node.inputPorts, ...node.outputPorts]
+      .map((port) => port.id)
+      .sort();
+    expect(actual).toEqual(expected);
+  }
+  expect(
+    container.querySelector('[data-handleid^="presentation-boundary-"]'),
+  ).toBeNull();
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -90,6 +129,12 @@ describe("generic dashboard components", () => {
         "1 edges",
       ),
     );
+    await waitFor(() =>
+      expect(container.querySelectorAll(".react-flow__minimap-node")).toHaveLength(
+        2,
+      ),
+    );
+    expectExactRawHandles(container, numericPorts);
     expect(api.getGraphFetches()).toBe(1);
     expect(
       (screen.getByRole("button", { name: "Zoom in topology" }) as HTMLButtonElement)
@@ -329,5 +374,220 @@ describe("generic dashboard components", () => {
       (screen.getByRole("button", { name: "Retry graph fetch" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
+  });
+
+  test("renders nested compounds, minimap, truthful counts, and raw equality", async () => {
+    installApi(groupedSplitMerge);
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await screen.findByTestId("topology-counts");
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId("graph-group-card")).toHaveLength(4),
+    );
+    expect(screen.getAllByTestId("graph-node-card")).toHaveLength(7);
+    expect(screen.getByTestId("grouped-counts").textContent).toContain(
+      "7 authoritative nodes, 4 groups, 7 edges/bundles (2 bundles)",
+    );
+    expect(container.querySelector(".react-flow__minimap")).not.toBeNull();
+    const minimap = screen.getByRole("group", {
+      name: "Keyboard topology minimap",
+    });
+    minimap.focus();
+    expect(document.activeElement).toBe(minimap);
+    expect(minimap.getAttribute("aria-keyshortcuts")).toContain("ArrowRight");
+    const viewport = container.querySelector(".react-flow__viewport")!;
+    const beforePan = viewport.getAttribute("style");
+    fireEvent.keyDown(minimap, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(viewport.getAttribute("style")).not.toBe(beforePan),
+    );
+    expect(document.activeElement).toBe(minimap);
+    expect(
+      screen.getByRole("button", { name: "Grouped topology" }).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+
+    await user.click(screen.getByRole("button", { name: "Raw topology" }));
+    await waitFor(() =>
+      expect(screen.getAllByTestId("graph-node-card")).toHaveLength(9),
+    );
+    expectExactRawHandles(container, groupedSplitMerge);
+    const nodeButton = container.querySelector(
+      '.react-flow__node[data-id="source_1"] .node-keyboard-select',
+    ) as HTMLButtonElement;
+    const layoutCount =
+      screen.getByTestId("layout-invocation-count").textContent;
+    const selectionViewport =
+      container.querySelector(".react-flow__viewport")!.getAttribute("style");
+    nodeButton.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("node-inspector").textContent).toContain(
+      "source_1",
+    );
+    expect(nodeButton.isConnected).toBe(true);
+    expect(document.activeElement).toBe(nodeButton);
+    expect(screen.getByTestId("layout-invocation-count").textContent).toBe(
+      layoutCount,
+    );
+    expect(
+      container.querySelector(".react-flow__viewport")!.getAttribute("style"),
+    ).toBe(selectionViewport);
+    expect(screen.queryAllByTestId("graph-group-card")).toHaveLength(0);
+    expect(screen.getByTestId("canvas-edge-count").textContent).toContain(
+      "9 edges",
+    );
+  });
+
+  test("preserves hidden authoritative selection through grouped/raw and collapse cycles", async () => {
+    installApi(groupedSplitMerge);
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await screen.findByTestId("topology-counts");
+
+    await user.click(screen.getByRole("button", { name: "Raw topology" }));
+    await waitFor(() =>
+      expect(
+        container.querySelector(
+          '.react-flow__node[data-id="interior_1"] .node-keyboard-select',
+        ),
+      ).not.toBeNull(),
+    );
+    fireEvent.click(
+      container.querySelector(
+        '.react-flow__node[data-id="interior_1"] .node-keyboard-select',
+      )!,
+    );
+    expect(screen.getByTestId("node-inspector").textContent).toContain(
+      "interior_1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Grouped topology" }));
+    await waitFor(() =>
+      expect(
+        container.querySelector(
+          '.react-flow__node[data-id="parallel-stage"] .contains-selection',
+        ) ??
+          container.querySelector(
+            '.react-flow__node[data-id="parallel-stage"] .graph-group-card.contains-selection',
+          ),
+      ).not.toBeNull(),
+    );
+    expect(screen.getByTestId("node-inspector").textContent).toContain(
+      "interior_1",
+    );
+    expect(
+      container.querySelector('.react-flow__node[data-id="interior_1"]'),
+    ).toBeNull();
+
+    for (let cycle = 0; cycle < 2; ++cycle) {
+      await user.click(
+        screen.getByRole("button", {
+          name: "Expand group parallel-stage",
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          container.querySelector('.react-flow__node[data-id="interior_1"]'),
+        ).not.toBeNull(),
+      );
+      await user.click(
+        screen.getByRole("button", {
+          name: "Collapse group parallel-stage",
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          container.querySelector('.react-flow__node[data-id="interior_1"]'),
+        ).toBeNull(),
+      );
+    }
+    expect(screen.getByTestId("node-inspector").textContent).toContain(
+      "interior_1",
+    );
+  });
+
+  test("inspects exact bundle members without replacing prior authoritative selection", async () => {
+    const model = adaptGraphDocument(groupedSplitMerge);
+    const hierarchy = adaptPresentationGroups(model);
+    const projection = projectPresentation(model, hierarchy, {
+      mode: "grouped",
+      collapsedGroupIds: new Set(["parallel-stage"]),
+      isolatedGroupId: null,
+    });
+    const selectedEdges: string[] = [];
+    render(
+      <BundleInspector
+        bundle={projection.bundles[0]}
+        model={model}
+        onSelectMemberEdge={(edgeId) => selectedEdges.push(edgeId)}
+      />,
+    );
+    const bundleInspector = screen.getByTestId("bundle-inspector");
+    expect(bundleInspector.textContent).toContain("Authoritative member count");
+    expect(bundleInspector.textContent).toContain("2");
+    expect(
+      screen.getAllByRole("button", { name: /Inspect authoritative edge/ }),
+    ).toHaveLength(2);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Inspect authoritative edge/ })[0],
+    );
+    expect(selectedEdges).toEqual([projection.bundles[0].memberEdgeIds[0]]);
+  });
+
+  test("isolates nested groups and navigates exact breadcrumbs with keyboard", async () => {
+    installApi(groupedSplitMerge);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const isolate = await screen.findByRole("button", {
+      name: "Isolate group parallel-stage",
+    });
+    isolate.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("Isolated: Parallel stage")).not.toBeNull();
+    expect(
+      screen.getByRole("navigation", { name: "Group breadcrumbs" }).textContent,
+    ).toContain("Processing pipeline / Parallel stage");
+    const parent = screen.getByRole("button", { name: "Return to parent" });
+    parent.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("Isolated: Processing pipeline")).not.toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Return to all topology" }),
+    );
+    expect(screen.queryByText(/Isolated:/)).toBeNull();
+  });
+
+  test("invalid hierarchy visibly falls back atomically to exact raw topology", async () => {
+    installApi(invalidGroups);
+    const { container } = render(<App />);
+    expect(
+      await screen.findByText(
+        "Presentation grouping rejected; Raw topology preserved",
+      ),
+    ).not.toBeNull();
+    expect(screen.getByText(/overlapping_group_member/)).not.toBeNull();
+    await waitFor(() =>
+      expect(screen.getAllByTestId("graph-node-card")).toHaveLength(3),
+    );
+    expect(screen.queryAllByTestId("graph-group-card")).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: "Raw topology" }).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+    expect(
+      (screen.getByRole("button", {
+        name: "Grouped topology",
+      }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expectExactRawHandles(container, invalidGroups);
+    await waitFor(() =>
+      expect(container.querySelectorAll(".react-flow__minimap-node")).toHaveLength(
+        3,
+      ),
+    );
   });
 });

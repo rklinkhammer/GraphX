@@ -43,6 +43,11 @@ if(ENABLE_TSAN)
     target_compile_options(sensor PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
     target_link_options(sensor PRIVATE -fsanitize=thread)
 endif()
+if(ENABLE_ASAN_UBSAN)
+    target_compile_options(sensor PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(sensor PUBLIC -fsanitize=address,undefined)
+endif()
 
 # Installation
 set(SENSOR_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/sensor")

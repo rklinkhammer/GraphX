@@ -90,7 +90,8 @@
       "description": "Linux deterministic regression with memory and undefined-behavior instrumentation",
       "inherits": "ninja-debug-linux-host",
       "cacheVariables": {
-        "ENABLE_ASAN_UBSAN": "ON"
+        "ENABLE_ASAN_UBSAN": "ON",
+        "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -Wno-maybe-uninitialized"
       }
     },
     {

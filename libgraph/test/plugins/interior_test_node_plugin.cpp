@@ -62,6 +62,13 @@ void* plugin_test_allocate_interior() {
     }
 }
 
+/**
+ * @brief Release an object returned by plugin_test_allocate_interior.
+ */
+void plugin_test_destroy_allocated_interior(void* handle) {
+    delete static_cast<InteriorTestNode*>(handle);
+}
+
 // Test if shared_ptr works
 /**
  * @brief Plugin test shared ptr interior.
@@ -86,6 +93,13 @@ void* plugin_create_interior_test_node() {
     } catch (...) {
         return nullptr;
     }
+}
+
+/**
+ * @brief Release a handle returned by plugin_create_interior_test_node.
+ */
+void plugin_test_destroy_created_interior(void* handle) {
+    Glue::Destroy(handle);
 }
 
 /**

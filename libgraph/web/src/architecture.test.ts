@@ -7,13 +7,22 @@ const repositoryRoot = resolve(process.cwd(), "../..");
 const read = (relativePath: string): string =>
   readFileSync(resolve(repositoryRoot, relativePath), "utf8");
 
+const productionWebFiles = readdirSync(
+  resolve(repositoryRoot, "libgraph/web/src"),
+  { recursive: true },
+)
+  .map((entry) => `libgraph/web/src/${String(entry)}`)
+  .filter(
+    (path) =>
+      /\.(?:ts|tsx|css)$/.test(path) &&
+      !path.includes(".test.") &&
+      !path.includes("/test/") &&
+      !path.endsWith("/setup.ts"),
+  )
+  .sort();
+
 const productionFiles = [
-  "libgraph/web/src/adapter.ts",
-  "libgraph/web/src/App.tsx",
-  "libgraph/web/src/layout.ts",
-  "libgraph/web/src/main.tsx",
-  "libgraph/web/src/styles.css",
-  "libgraph/web/src/types.ts",
+  ...productionWebFiles,
   "libgraph/resources/web/index.html",
   "libgraph/src/graph/GraphHttpServer.cpp",
   "libgraph/include/graph/GraphHttpServer.hpp",
@@ -21,6 +30,14 @@ const productionFiles = [
 ];
 
 describe("generic dashboard architecture scan", () => {
+  test("automatically inventories every production web module", () => {
+    expect(productionWebFiles).toContain("libgraph/web/src/identity.ts");
+    expect(productionWebFiles).toContain("libgraph/web/src/App.tsx");
+    expect(productionWebFiles).not.toContain(
+      "libgraph/web/src/architecture.test.ts",
+    );
+  });
+
   test("contains no parallel management or legacy dashboard dependency", () => {
     const source = productionFiles.map(read).join("\n");
     for (const forbidden of [
@@ -33,12 +50,18 @@ describe("generic dashboard architecture scan", () => {
       "ReceiverGraphHttpServer",
       "unpkg.com",
       "cdn.jsdelivr.net",
+      "/api/v1/groups",
+      "/api/v1/topology",
     ]) {
       expect(source).not.toContain(forbidden);
     }
     expect(source).not.toMatch(/\bFHSS\b/);
     expect(source).not.toMatch(/\bSAR\b/);
     expect(source).not.toMatch(/\bfrequency_index\b/i);
+    expect(source).not.toMatch(/\bdetector\b/i);
+    expect(source).not.toMatch(/\bchannelizer\b/i);
+    expect(source).not.toMatch(/\bmessage schedule\b/i);
+    expect(source).not.toMatch(/\bIQ metadata\b/i);
     expect(source).not.toMatch(/\breceiver\b/i);
   });
 
@@ -47,6 +70,9 @@ describe("generic dashboard architecture scan", () => {
     expect(app.match(/`\$\{apiBase\}\/graph`/g)).toHaveLength(1);
     expect(app.match(/\$\{apiBase\}\/nodes\//g)).toHaveLength(1);
     expect(app).toContain('method: "PATCH"');
+    expect(app).toContain(
+      "body: JSON.stringify({ node_config: nodeConfig })",
+    );
     expect(app).toContain("nodesDraggable={false}");
     expect(app).toContain("nodesConnectable={false}");
     expect(app).toContain("edgesReconnectable={false}");
@@ -58,6 +84,8 @@ describe("generic dashboard architecture scan", () => {
       "onReconnect=",
       "GraphExecutor",
       "GraphManager",
+      "collapsedGroupIds })",
+      "isolatedGroupId })",
     ]) {
       expect(app).not.toContain(forbidden);
     }

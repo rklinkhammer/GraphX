@@ -389,6 +389,7 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
     void* plugin_handle = nullptr;
     void* node_handle = nullptr;
     const NodeFacade* inspected_facade = nullptr;
+    bool adapter_owns_node = false;
 
     try {
         plugin_handle = dlopen(info.path.c_str(), RTLD_LAZY | RTLD_LOCAL);
@@ -443,6 +444,7 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
             node_handle,
             inspected_facade,
             metadata_service_);
+        adapter_owns_node = true;
         result.node_descriptor_schema =
             metadata_service_->DescriptorSchemaProvider().BuildSchema(adapter.GetDescriptor());
 
@@ -479,7 +481,14 @@ PluginCapabilities PluginInspector::InspectLoadedPlugin(const PluginInfo& info) 
         result.capabilities.push_back(metrics);
 
         result.info.is_loaded = true;
+        // The adapter owns and destroys this temporary node as it leaves scope.
+        // Disarm the fallback cleanup to avoid destroying the handle twice.
+        node_handle = nullptr;
     } catch (const std::exception& e) {
+        if (adapter_owns_node) {
+            // Stack unwinding has already destroyed the owning adapter.
+            node_handle = nullptr;
+        }
         result.info.is_loaded = false;
         result.info.load_error = e.what();
     }

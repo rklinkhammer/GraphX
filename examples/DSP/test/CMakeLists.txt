@@ -354,9 +354,13 @@ add_test(
             --raw ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_raw.json
             --report ${CMAKE_BINARY_DIR}/fhss_phase3_smoke_report.json
 )
+set(FHSS_PHASE3_ACTUAL_GRAPH_TIMEOUT 180)
+if(ENABLE_ASAN_UBSAN)
+    set(FHSS_PHASE3_ACTUAL_GRAPH_TIMEOUT 600)
+endif()
 set_tests_properties(fhss_phase3_actual_graph_smoke PROPERTIES
     LABELS "dsp;fhss;phase3;actual-graph;ci-safe;host-any"
-    TIMEOUT 90)
+    TIMEOUT ${FHSS_PHASE3_ACTUAL_GRAPH_TIMEOUT})
 
 add_test(
     NAME fhss_phase4_recorded_infrastructure

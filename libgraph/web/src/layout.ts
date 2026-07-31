@@ -29,11 +29,19 @@ function fallbackLayout(model: DisplayGraph): Node<NodeCardData>[] {
   return model.nodes.map((node, index) => ({
     id: node.id,
     type: "graphNode",
+    width: nodeWidth,
+    height: nodeHeight(node.inputPorts.length, node.outputPorts.length),
     position: {
       x: (index % columns) * 340,
       y: Math.floor(index / columns) * 220,
     },
-    data: { node, selected: false },
+    data: {
+      kind: "node",
+      node,
+      selected: false,
+      presentationBoundaryInput: false,
+      presentationBoundaryOutput: false,
+    },
     draggable: false,
     connectable: false,
   }));
@@ -122,8 +130,16 @@ export async function layoutDisplayGraph(
       nodes: model.nodes.map((node) => ({
         id: node.id,
         type: "graphNode",
+        width: nodeWidth,
+        height: nodeHeight(node.inputPorts.length, node.outputPorts.length),
         position: positions.get(node.id) ?? { x: 0, y: 0 },
-        data: { node, selected: false },
+        data: {
+          kind: "node",
+          node,
+          selected: false,
+          presentationBoundaryInput: false,
+          presentationBoundaryOutput: false,
+        },
         draggable: false,
         connectable: false,
       })),

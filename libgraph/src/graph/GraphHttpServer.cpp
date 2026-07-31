@@ -58,8 +58,8 @@ constexpr std::size_t kPendingRequestCount =
 struct HttpResponse {
   int status = 200;
   std::string content_type = "application/json";
-  std::string body;
-  std::vector<std::pair<std::string, std::string>> headers;
+  std::string body{};
+  std::vector<std::pair<std::string, std::string>> headers{};
 };
 
 std::string ReasonPhrase(const int status) {

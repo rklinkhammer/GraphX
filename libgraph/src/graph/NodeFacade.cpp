@@ -355,11 +355,11 @@ NodeFacadeAdapter::NodeFacadeAdapter(
 
 NodeFacadeAdapter::~NodeFacadeAdapter() {
     LOG4CXX_TRACE(logger_, "Destroying NodeFacadeAdapter");
-    
-    // NOTE: Do NOT call Cleanup() or facade_->Destroy() here!
-    // Cleanup() must be called explicitly BEFORE destruction via GraphManager
-    // to avoid vptr corruption during ConcreteNode destructor chains.
-    // See: Cleanup() method and GraphManager destructor for proper lifecycle.
+    try {
+        Cleanup();
+    } catch (...) {
+        LOG4CXX_WARN(logger_, "NodeFacadeAdapter cleanup failed during destruction");
+    }
 }
 
 /**
@@ -435,12 +435,14 @@ NodeFacadeAdapter::NodeFacadeAdapter(NodeFacadeAdapter&& other) noexcept
 NodeFacadeAdapter& NodeFacadeAdapter::operator=(NodeFacadeAdapter&& other) noexcept {
     LOG4CXX_TRACE(logger_, "Move-assigning NodeFacadeAdapter");
     
-    // Clean up our current handle before taking ownership of other's
-    if (started_) {
-        Stop();
+    if (this == &other) {
+        return *this;
     }
-    if (facade_ && facade_->Destroy && handle_) {
-        facade_->Destroy(handle_);
+
+    try {
+        Cleanup();
+    } catch (...) {
+        LOG4CXX_WARN(logger_, "NodeFacadeAdapter cleanup failed during move assignment");
     }
     
     // Take ownership
@@ -576,22 +578,25 @@ void NodeFacadeAdapter::Cleanup() {
         }
     }
     
-    // IMPORTANT: Do NOT call Destroy() here!
-    // Calling facade_->Destroy(handle_) during cleanup causes the plugin to delete
-    // the NodePluginInstance, which releases shared_ptr<ConcreteNode>.
-    // This triggers ConcreteNode's destructor while it's still being referenced
-    // by the virtual function table, causing pure virtual errors.
-    //
-    // Instead, rely on the plugin to manage its own lifecycle. The handle will be
-    // leaked if the plugin doesn't clean up automatically, but this is safer than
-    // calling Destroy() during our destructor sequence.
-    //
-    // NOTE: This is a known limitation - plugins should implement RAII cleanup
-    // via their own module initialization/cleanup handlers if needed.
-    
-    // Just mark as cleaned up
+    // Borrowed optional-interface pointers are valid only while the plugin node
+    // exists. Release the adapters before invoking the ABI destroy callback.
+    data_injection_node_config_ptr_.reset();
+    configurable_ptr_.reset();
+    diagnosable_ptr_.reset();
+    parameterized_ptr_.reset();
+    metrics_callback_provider_ptr_.reset();
+    completion_callback_provider_ptr_.reset();
+    gpu_capability_binding_ptr_.reset();
+
+    const auto destroy = facade_ ? facade_->Destroy : nullptr;
+    const auto handle = handle_;
     handle_ = nullptr;
-    LOG4CXX_TRACE(logger_, "Node marked as cleaned up (Destroy callback NOT called)");
+    initialized_ = false;
+    started_ = false;
+    if (destroy) {
+        destroy(handle);
+    }
+    LOG4CXX_TRACE(logger_, "Destroyed plugin node handle");
 }
 
 /**

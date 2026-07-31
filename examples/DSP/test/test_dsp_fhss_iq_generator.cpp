@@ -38,6 +38,14 @@
 
 namespace {
 
+constexpr int ExecutorTimeoutSeconds(const int native_seconds) {
+#if defined(__SANITIZE_ADDRESS__)
+  return native_seconds * 5;
+#else
+  return native_seconds;
+#endif
+}
+
 std::string ShellQuote(const std::filesystem::path &path) {
   std::string quoted{"'"};
   for (const char ch : path.string()) {
@@ -694,7 +702,8 @@ TEST(DspFhssIqGeneratorExecutableTest,
   auto executor = graph::GraphExecutorBuilder()
                       .WithJsonConfig(graph_path.string())
                       .WithPluginDirectory(DSP_PLUGIN_OUTPUT_DIRECTORY)
-                      .WithExecutorTimeout(std::chrono::seconds(20))
+                      .WithExecutorTimeout(std::chrono::seconds(
+                          ExecutorTimeoutSeconds(20)))
                       .Build();
   ASSERT_NE(executor, nullptr);
   const auto initialized = executor->Init();

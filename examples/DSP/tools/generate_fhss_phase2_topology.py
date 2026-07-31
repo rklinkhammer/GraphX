@@ -21,6 +21,17 @@ def main() -> int:
         "and evidence-driven acquisition; no schedule, message truth, or "
         "transmitted-frequency hints."
     )
+    graph["presentation"] = {
+        "groups": [
+            {
+                "id": "detector-bank",
+                "label": "Detector bank",
+                "members": [f"detector_{index}" for index in range(64)],
+                "layout": "grid",
+                "collapsed_by_default": True,
+            }
+        ]
+    }
     for node in graph["nodes"]:
         if node["id"] == "channelizer":
             node["type"] = "FHSSProductionCandidateChannelizerNode"

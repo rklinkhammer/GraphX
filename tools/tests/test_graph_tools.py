@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import shutil
 import signal
 import socket
 import subprocess
@@ -63,6 +64,54 @@ def wait_until_ready(base_url: str, process: subprocess.Popen[str]) -> str:
         time.sleep(0.05)
     raise AssertionError("dashboard did not become ready")
 
+def wait_until_http(
+    base_url: str, process: subprocess.Popen[str], expected_status: int
+) -> str:
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            raise AssertionError(
+                f"dashboard exited before readiness ({process.returncode})\n"
+                f"stdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+        try:
+            status, document = request(f"{base_url}/")
+            if status == expected_status:
+                return document
+        except (OSError, urllib.error.URLError):
+            pass
+        time.sleep(0.05)
+    raise AssertionError(
+        f"dashboard did not return expected HTTP {expected_status}"
+    )
+
+
+def stop_dashboard(process: subprocess.Popen[str]) -> None:
+    if process.poll() is None:
+        process.send_signal(signal.SIGTERM)
+    try:
+        process.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate(timeout=5)
+        raise AssertionError("dashboard did not stop after SIGTERM")
+    if process.returncode != 0:
+        raise AssertionError(f"dashboard shutdown returned {process.returncode}")
+
+
+def start_dashboard(
+    dashboard: Path, graph: Path
+) -> tuple[subprocess.Popen[str], str]:
+    port = available_port()
+    process = subprocess.Popen(
+        [str(dashboard), "--graph", str(graph), "--port", str(port)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return process, f"http://127.0.0.1:{port}"
+
 
 def verify_cli(cli: Path, graph: Path, work_dir: Path) -> None:
     count = run(str(cli), "--graph", str(graph), "node-count")
@@ -98,15 +147,8 @@ def verify_dashboard(dashboard: Path, graph: Path) -> None:
     run(str(dashboard), "--graph", str(graph), "--port", "65536", expected=2)
     run(str(dashboard), "--graph", str(graph) + ".missing", expected=1)
 
-    port = available_port()
-    process = subprocess.Popen(
-        [str(dashboard), "--graph", str(graph), "--port", str(port)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    process, base_url = start_dashboard(dashboard, graph)
     try:
-        base_url = f"http://127.0.0.1:{port}"
         index = wait_until_ready(base_url, process)
         if "GraphX Management Dashboard" not in index:
             raise AssertionError("dashboard did not serve the checked-in UI")
@@ -206,16 +248,85 @@ def verify_dashboard(dashboard: Path, graph: Path) -> None:
         if status != 404:
             raise AssertionError("unknown operation did not return 404")
     finally:
-        if process.poll() is None:
-            process.send_signal(signal.SIGTERM)
+        stop_dashboard(process)
+
+
+def verify_installed_dashboard_resources(
+    dashboard: Path, graph: Path, work_dir: Path, source_root: Path
+) -> None:
+    source_assets = source_root / "libgraph" / "resources" / "web"
+
+    def prepare(name: str, omitted: set[str]) -> Path:
+        prefix = work_dir / name
+        if prefix.exists():
+            shutil.rmtree(prefix)
+        bin_dir = prefix / "bin"
+        resource_dir = prefix / "share" / "graphx" / "dashboard"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        resource_dir.mkdir(parents=True, exist_ok=True)
+        installed_dashboard = bin_dir / dashboard.name
+        shutil.copy2(dashboard, installed_dashboard)
+        for relative in (
+            Path("index.html"),
+            Path("assets/graphx-dashboard.js"),
+            Path("assets/graphx-dashboard.css"),
+        ):
+            if relative.as_posix() in omitted:
+                continue
+            destination = resource_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_assets / relative, destination)
+        for relative in omitted:
+            if (resource_dir / relative).exists():
+                raise AssertionError(
+                    f"stale omitted install fixture asset survived: {relative}"
+                )
+        return installed_dashboard
+
+    complete = prepare("installed-complete", set())
+    process, base_url = start_dashboard(complete, graph)
+    try:
+        index = wait_until_ready(base_url, process)
+        if "GraphX Management Dashboard" not in index:
+            raise AssertionError("complete installed dashboard did not serve its index")
+        for asset in (
+            "assets/graphx-dashboard.js",
+            "assets/graphx-dashboard.css",
+        ):
+            status, body = request(f"{base_url}/{asset}")
+            if status != 200 or not body:
+                raise AssertionError(
+                    f"complete installed dashboard failed to serve {asset}"
+                )
+    finally:
+        stop_dashboard(process)
+
+    missing_index = prepare("installed-missing-index", {"index.html"})
+    process, base_url = start_dashboard(missing_index, graph)
+    try:
+        document = wait_until_http(base_url, process, 503)
+        if "ui_unavailable" not in document:
+            raise AssertionError(
+                "missing installed index did not report ui_unavailable"
+            )
+    finally:
+        stop_dashboard(process)
+
+    for asset in (
+        "assets/graphx-dashboard.js",
+        "assets/graphx-dashboard.css",
+    ):
+        installed = prepare(f"installed-missing-{Path(asset).suffix[1:]}", {asset})
+        process, base_url = start_dashboard(installed, graph)
         try:
-            process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.communicate(timeout=5)
-            raise AssertionError("dashboard did not stop after SIGTERM")
-    if process.returncode != 0:
-        raise AssertionError(f"dashboard shutdown returned {process.returncode}")
+            wait_until_ready(base_url, process)
+            status, _ = request(f"{base_url}/{asset}")
+            if status != 404:
+                raise AssertionError(
+                    f"incomplete install borrowed missing {asset} from the source tree"
+                )
+        finally:
+            stop_dashboard(process)
 
 
 def verify_dashboard_architecture(source_root: Path) -> None:
@@ -266,9 +377,16 @@ def main() -> int:
     args = parser.parse_args()
 
     args.work_dir.mkdir(parents=True, exist_ok=True)
+    source_root = Path(__file__).resolve().parents[2]
     verify_cli(args.cli.resolve(), args.graph.resolve(), args.work_dir.resolve())
     verify_dashboard(args.dashboard.resolve(), args.graph.resolve())
-    verify_dashboard_architecture(Path(__file__).resolve().parents[2])
+    verify_installed_dashboard_resources(
+        args.dashboard.resolve(),
+        args.graph.resolve(),
+        args.work_dir.resolve(),
+        source_root,
+    )
+    verify_dashboard_architecture(source_root)
     return 0
 
 

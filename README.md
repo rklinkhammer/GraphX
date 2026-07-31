@@ -104,6 +104,33 @@ service in this repository. Use the host commands in
 legacy operator image is retained as historical qualification material and is
 not part of the supported quick start.
 
+### Linux sanitizer container
+
+An optional supported container runs the frontend checks and native GraphX
+tests under Linux AddressSanitizer, LeakSanitizer, and
+UndefinedBehaviorSanitizer. It uses the existing
+`ninja-debug-linux-sanitized` preset and is separate from the legacy FHSS
+dashboard image:
+
+```bash
+docker compose -f containers/sanitizers/compose.yaml build
+docker compose -f containers/sanitizers/compose.yaml run --rm sanitizer focused
+```
+
+The focused lane covers the generic-dashboard Phase 0/1 preservation contracts
+and Phase 2 hierarchy, execution-isolation, HTTP, CLI, FHSS fixture, and
+frontend tests. To run every enabled configured CTest under the same
+instrumentation:
+
+```bash
+docker compose -f containers/sanitizers/compose.yaml run --rm sanitizer full
+```
+
+Container build output is disposable and does not use host build directories
+or `/private/tmp`. See `containers/sanitizers/README.md` for scope and platform
+limitations. Docker remains optional; the host-native commands above are still
+the primary development path.
+
 Configure and build a Jetson CUDA debug tree for FHSS CUDA verification:
 
 ```bash

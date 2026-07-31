@@ -1,6 +1,7 @@
 import {
   Background,
   Handle,
+  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -10,6 +11,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -19,12 +21,32 @@ import {
 } from "react";
 
 import { adaptGraphDocument, formatPort } from "./adapter";
-import { layoutDisplayGraph } from "./layout";
+import {
+  adaptPresentationGroups,
+  groupBreadcrumbs,
+  hierarchyDiagnosticText,
+} from "./hierarchy";
+import { layoutPresentationGraph } from "./hierarchyLayout";
+import {
+  groupContainsSelection,
+  projectPresentation,
+  reconcileCollapsedGroups,
+} from "./presentation";
 import type {
+  AuthoritativeSelection,
+  BundleEdge,
+  CanvasNodeData,
   DisplayEdge,
   DisplayGraph,
+  DisplayGroup,
+  DisplayHierarchy,
   DisplayNode,
+  GroupCardData,
+  HierarchyDiagnostic,
   NodeCardData,
+  PresentationProjection,
+  PresentationSelection,
+  PresentationState,
   Selection,
 } from "./types";
 
@@ -62,6 +84,9 @@ function NodeCard({ data, selected }: NodeProps<Node<NodeCardData>>) {
       aria-label={`Node ${node.id}, type ${node.type}`}
       tabIndex={0}
       onKeyDown={(event) => {
+        if (event.currentTarget !== event.target) {
+          return;
+        }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           data.onSelect?.({ kind: "node", id: node.id });
@@ -118,49 +143,237 @@ function NodeCard({ data, selected }: NodeProps<Node<NodeCardData>>) {
           ))}
         </div>
       </div>
+      {data.presentationBoundaryInput && (
+        <Handle
+          id="presentation-boundary-input"
+          className="presentation-boundary-handle"
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+        />
+      )}
+      {data.presentationBoundaryOutput && (
+        <Handle
+          id="presentation-boundary-output"
+          className="presentation-boundary-handle"
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+        />
+      )}
     </article>
   );
 }
 
-const nodeTypes = { graphNode: NodeCard };
+function GroupCard({ data, selected }: NodeProps<Node<GroupCardData>>) {
+  const group = data.group;
+  return (
+    <article
+      className={[
+        "graph-group-card",
+        data.collapsed ? "collapsed" : "expanded",
+        selected ? "selected" : "",
+        data.containsSelection ? "contains-selection" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-testid="graph-group-card"
+      aria-label={`Group ${group.label}, ${group.memberNodeIds.length} authoritative members, ${
+        data.collapsed ? "collapsed" : "expanded"
+      }${data.containsSelection ? ", contains authoritative selection" : ""}`}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          data.onSelect?.({ kind: "group", id: group.id });
+        }
+      }}
+    >
+      <header className="group-card-header">
+        <div>
+          <strong>{group.label}</strong>
+          <span>{group.id}</span>
+        </div>
+        <div className="group-card-counts">
+          {group.memberNodeIds.length} members · {group.internalEdgeIds.length} internal
+          edges · {group.layout}
+        </div>
+        <div className="group-card-actions nodrag nopan">
+          <button
+            type="button"
+            aria-label={`${data.collapsed ? "Expand" : "Collapse"} group ${group.id}`}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onToggle?.(group.id);
+            }}
+          >
+            {data.collapsed ? "Expand" : "Collapse"}
+          </button>
+          <button
+            type="button"
+            aria-label={`Isolate group ${group.id}`}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onIsolate?.(group.id);
+            }}
+          >
+            Isolate
+          </button>
+          <button
+            type="button"
+            aria-label={`Inspect group ${group.id}`}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onSelect?.({ kind: "group", id: group.id });
+            }}
+          >
+            Inspect
+          </button>
+        </div>
+      </header>
+      {!data.collapsed && (
+        <p className="group-expanded-note">Expanded compound group</p>
+      )}
+      {data.presentationBoundaryInput && (
+        <Handle
+          id="presentation-boundary-input"
+          className="presentation-boundary-handle"
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+        />
+      )}
+      {data.presentationBoundaryOutput && (
+        <Handle
+          id="presentation-boundary-output"
+          className="presentation-boundary-handle"
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+        />
+      )}
+    </article>
+  );
+}
+
+const nodeTypes = { graphNode: NodeCard, groupNode: GroupCard };
 
 interface TopologyCanvasProps {
   model: DisplayGraph;
-  selection: Selection;
-  onSelect: (selection: Selection) => void;
+  hierarchy: DisplayHierarchy;
+  projection: PresentationProjection;
+  authoritativeSelection: AuthoritativeSelection;
+  presentationSelection: PresentationSelection;
+  onAuthoritativeSelect: (selection: AuthoritativeSelection) => void;
+  onPresentationSelect: (selection: PresentationSelection) => void;
+  onToggleGroup: (groupId: string) => void;
+  onIsolateGroup: (groupId: string) => void;
+  onClearSelection: () => void;
+  onLayoutFallback: (diagnostic: HierarchyDiagnostic | null) => void;
 }
 
 function TopologyCanvasBody({
   model,
-  selection,
-  onSelect,
+  hierarchy,
+  projection,
+  authoritativeSelection,
+  presentationSelection,
+  onAuthoritativeSelect,
+  onPresentationSelect,
+  onToggleGroup,
+  onIsolateGroup,
+  onClearSelection,
+  onLayoutFallback,
 }: TopologyCanvasProps) {
-  const [nodes, setNodes] = useState<Node<NodeCardData>[]>([]);
+  const [nodes, setNodes] = useState<Node<CanvasNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [layoutDiagnostic, setLayoutDiagnostic] = useState<string | null>(null);
   const [layoutRevision, setLayoutRevision] = useState(0);
-  const { fitView, setViewport, zoomIn, zoomOut } = useReactFlow();
+  const [layoutInvocationCount, setLayoutInvocationCount] = useState(0);
+  const authoritativeSelectionRef = useRef(authoritativeSelection);
+  const presentationSelectionRef = useRef(presentationSelection);
+  authoritativeSelectionRef.current = authoritativeSelection;
+  presentationSelectionRef.current = presentationSelection;
+  const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useReactFlow();
+  const selectedNodeId =
+    authoritativeSelection?.kind === "node"
+      ? authoritativeSelection.id
+      : null;
+  const selectedGroupId =
+    presentationSelection?.kind === "group"
+      ? presentationSelection.id
+      : null;
+  const containedSelection =
+    projection.mode === "grouped" ? authoritativeSelection : null;
 
   useEffect(() => {
     let current = true;
-    void layoutDisplayGraph(model).then((layout) => {
+    setLayoutInvocationCount((count) => count + 1);
+    void layoutPresentationGraph(
+      model,
+      hierarchy,
+      projection,
+      null,
+    ).then((layout) => {
       if (!current) {
         return;
       }
+      onLayoutFallback(
+        projection.mode === "grouped" && layout.fellBackToRaw
+          ? layout.diagnostic
+          : null,
+      );
+      const currentAuthoritativeSelection = authoritativeSelectionRef.current;
+      const currentPresentationSelection = presentationSelectionRef.current;
       setNodes(
         layout.nodes.map((node) => ({
           ...node,
-          data: { ...node.data, onSelect },
-          selected: selection?.kind === "node" && selection.id === node.id,
+          data:
+            node.data.kind === "node"
+              ? {
+                  ...node.data,
+                  selected:
+                    currentAuthoritativeSelection?.kind === "node" &&
+                    currentAuthoritativeSelection.id === node.id,
+                  onSelect: onAuthoritativeSelect,
+                }
+              : {
+                  ...node.data,
+                  containsSelection: groupContainsSelection(
+                    node.data.group,
+                    currentAuthoritativeSelection,
+                  ),
+                  onSelect: onPresentationSelect,
+                  onToggle: onToggleGroup,
+                  onIsolate: onIsolateGroup,
+                },
+          selected:
+            (node.data.kind === "node" &&
+              currentAuthoritativeSelection?.kind === "node" &&
+              currentAuthoritativeSelection.id === node.id) ||
+            (node.data.kind === "group" &&
+              currentPresentationSelection?.kind === "group" &&
+              currentPresentationSelection.id === node.id),
         })),
       );
       setEdges(
         layout.edges.map((edge) => ({
           ...edge,
-          selected: selection?.kind === "edge" && selection.id === edge.id,
+          selected:
+            (edge.data?.edge !== undefined &&
+              currentAuthoritativeSelection?.kind === "edge" &&
+              currentAuthoritativeSelection.id === edge.id) ||
+            (edge.data?.bundle !== undefined &&
+              currentPresentationSelection?.kind === "bundle" &&
+              currentPresentationSelection.id === edge.id),
         })),
       );
-      setLayoutDiagnostic(layout.diagnostic);
+      setLayoutDiagnostic(
+        layout.diagnostic ? hierarchyDiagnosticText(layout.diagnostic) : null,
+      );
       requestAnimationFrame(() => {
         void fitView({ padding: 0.16, duration: 0 });
       });
@@ -168,22 +381,90 @@ function TopologyCanvasBody({
     return () => {
       current = false;
     };
-  }, [fitView, layoutRevision, model]);
+  }, [
+    fitView,
+    hierarchy,
+    layoutRevision,
+    model,
+    onAuthoritativeSelect,
+    onIsolateGroup,
+    onLayoutFallback,
+    onPresentationSelect,
+    onToggleGroup,
+    projection,
+  ]);
 
   useEffect(() => {
     setNodes((current) =>
       current.map((node) => ({
         ...node,
-        selected: selection?.kind === "node" && selection.id === node.id,
+        data:
+          node.data.kind === "group"
+            ? {
+                  ...node.data,
+                  containsSelection: groupContainsSelection(
+                    node.data.group,
+                    containedSelection,
+                  ),
+              }
+            : {
+                ...node.data,
+                selected:
+                  selectedNodeId === node.id,
+              },
+        selected:
+          (node.data.kind === "node" &&
+            selectedNodeId === node.id) ||
+          (node.data.kind === "group" &&
+            selectedGroupId === node.id),
       })),
     );
-    setEdges((current) =>
-      current.map((edge) => ({
-        ...edge,
-        selected: selection?.kind === "edge" && selection.id === edge.id,
-      })),
-    );
-  }, [selection]);
+  }, [containedSelection, selectedGroupId, selectedNodeId]);
+
+  const handleMinimapKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const viewport = getViewport();
+      const panStep = 72;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        event.stopPropagation();
+        void setViewport(
+          { ...viewport, x: viewport.x + panStep },
+          { duration: 0 },
+        );
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        event.stopPropagation();
+        void setViewport(
+          { ...viewport, x: viewport.x - panStep },
+          { duration: 0 },
+        );
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        void setViewport(
+          { ...viewport, y: viewport.y + panStep },
+          { duration: 0 },
+        );
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        event.stopPropagation();
+        void setViewport(
+          { ...viewport, y: viewport.y - panStep },
+          { duration: 0 },
+        );
+      } else if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        event.stopPropagation();
+        void zoomIn({ duration: 0 });
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        event.stopPropagation();
+        void zoomOut({ duration: 0 });
+      }
+    },
+    [getViewport, setViewport, zoomIn, zoomOut],
+  );
 
   const handleTopologyKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -206,9 +487,15 @@ function TopologyCanvasBody({
       }
       event.preventDefault();
       event.stopPropagation();
-      onSelect({ kind: "edge", id: edgeId });
+      const edge = edges.find((candidate) => candidate.id === edgeId);
+      if (edge?.data?.bundle !== undefined) {
+        onPresentationSelect({ kind: "bundle", id: edgeId });
+      } else {
+        onPresentationSelect(null);
+        onAuthoritativeSelect({ kind: "edge", id: edgeId });
+      }
     },
-    [edges, onSelect],
+    [edges, onAuthoritativeSelect, onPresentationSelect],
   );
 
   return (
@@ -239,8 +526,10 @@ function TopologyCanvasBody({
         </button>
         <button
           type="button"
-          onClick={() => onSelect(null)}
-          disabled={selection === null}
+          onClick={onClearSelection}
+          disabled={
+            authoritativeSelection === null && presentationSelection === null
+          }
           aria-label="Clear topology selection"
         >
           Clear selection
@@ -248,11 +537,21 @@ function TopologyCanvasBody({
       </div>
       {layoutDiagnostic && (
         <div className="diagnostic-panel" role="alert">
-          {layoutDiagnostic}
+          <p>{layoutDiagnostic}</p>
+          <details>
+            <summary>Exact authoritative raw topology</summary>
+            <h3>Nodes ({model.rawNodes.length})</h3>
+            <pre>{JSON.stringify(model.rawNodes, null, 2)}</pre>
+            <h3>Edges ({model.rawEdges.length})</h3>
+            <pre>{JSON.stringify(model.rawEdges, null, 2)}</pre>
+          </details>
         </div>
       )}
       <output className="sr-only" data-testid="canvas-edge-count">
         Canvas edge model contains {edges.length} edges
+      </output>
+      <output className="sr-only" data-testid="layout-invocation-count">
+        Layout invocation count {layoutInvocationCount}
       </output>
       <div
         className="topology-canvas"
@@ -267,7 +566,7 @@ function TopologyCanvasBody({
           nodesDraggable={false}
           nodesConnectable={false}
           edgesReconnectable={false}
-          elementsSelectable
+          elementsSelectable={false}
           edgesFocusable
           nodesFocusable
           panOnDrag
@@ -283,28 +582,67 @@ function TopologyCanvasBody({
             "edge.a11yDescription.default":
               "Press Enter or Space to select this read-only edge.",
           }}
-          onNodeClick={(_, node) => onSelect({ kind: "node", id: node.id })}
-          onEdgeClick={(_, edge) => onSelect({ kind: "edge", id: edge.id })}
-          onPaneClick={() => onSelect(null)}
+          onNodeClick={(_, node) => {
+            if (node.data.kind === "group") {
+              onPresentationSelect({ kind: "group", id: node.id });
+            } else {
+              onPresentationSelect(null);
+              onAuthoritativeSelect({ kind: "node", id: node.id });
+            }
+          }}
+          onEdgeClick={(_, edge) => {
+            if (edge.data?.bundle !== undefined) {
+              onPresentationSelect({ kind: "bundle", id: edge.id });
+            } else {
+              onPresentationSelect(null);
+              onAuthoritativeSelect({ kind: "edge", id: edge.id });
+            }
+          }}
+          onPaneClick={onClearSelection}
           proOptions={{ hideAttribution: true }}
           minZoom={0.05}
           maxZoom={4}
           onlyRenderVisibleElements={false}
         >
           <Background gap={24} size={1} />
+          <div
+            className="minimap-keyboard-control"
+            data-testid="minimap-keyboard-control"
+            role="group"
+            aria-label="Keyboard topology minimap"
+            aria-describedby="minimap-keyboard-instructions"
+            aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown + -"
+            tabIndex={0}
+            onKeyDown={handleMinimapKeyDown}
+          >
+            <span id="minimap-keyboard-instructions" className="sr-only">
+              Arrow keys pan the topology viewport. Plus and minus zoom the
+              topology viewport.
+            </span>
+            <MiniMap
+              ariaLabel="Topology overview minimap"
+              pannable
+              zoomable
+              nodeColor={(node) =>
+                node.type === "groupNode" ? "#7253a6" : "#284f9f"
+              }
+            />
+          </div>
         </ReactFlow>
       </div>
     </section>
   );
 }
 
-function TopologyCanvas(props: TopologyCanvasProps) {
+const TopologyCanvas = memo(function TopologyCanvas(
+  props: TopologyCanvasProps,
+) {
   return (
     <ReactFlowProvider>
       <TopologyCanvasBody {...props} />
     </ReactFlowProvider>
   );
-}
+});
 
 interface NodeTableProps {
   nodes: DisplayNode[];
@@ -403,27 +741,69 @@ function NodeTable({
 
 function Inspector({
   model,
-  selection,
+  hierarchy,
+  projection,
+  authoritativeSelection,
+  presentationSelection,
   onEdit,
+  onSelectMemberEdge,
+  onToggleGroup,
+  onIsolateGroup,
 }: {
   model: DisplayGraph;
-  selection: Selection;
+  hierarchy: DisplayHierarchy;
+  projection: PresentationProjection;
+  authoritativeSelection: AuthoritativeSelection;
+  presentationSelection: PresentationSelection;
   onEdit: (node: DisplayNode) => void;
+  onSelectMemberEdge: (edgeId: string) => void;
+  onToggleGroup: (groupId: string) => void;
+  onIsolateGroup: (groupId: string) => void;
 }) {
   const node =
-    selection?.kind === "node"
-      ? model.nodes.find((candidate) => candidate.id === selection.id)
+    authoritativeSelection?.kind === "node"
+      ? model.nodes.find(
+          (candidate) => candidate.id === authoritativeSelection.id,
+        )
       : undefined;
   const edge =
-    selection?.kind === "edge"
-      ? model.edges.find((candidate) => candidate.id === selection.id)
+    authoritativeSelection?.kind === "edge"
+      ? model.edges.find(
+          (candidate) => candidate.id === authoritativeSelection.id,
+        )
+      : undefined;
+  const group =
+    presentationSelection?.kind === "group"
+      ? hierarchy.groups.find(
+          (candidate) => candidate.id === presentationSelection.id,
+        )
       : undefined;
 
   return (
     <aside className="inspector" aria-labelledby="inspector-heading">
       <h2 id="inspector-heading">Inspector</h2>
-      {!node && !edge && <p>Select a node or edge to inspect it.</p>}
-      {node && (
+      {!node && !edge && !group && presentationSelection?.kind !== "bundle" && (
+        <p>Select a node, edge, group, or bundle to inspect it.</p>
+      )}
+      {presentationSelection?.kind === "bundle" && (
+        <BundleInspector
+          bundle={
+            projection.bundles.find(
+              (candidate) => candidate.id === presentationSelection.id,
+            ) ?? null
+          }
+          model={model}
+          onSelectMemberEdge={onSelectMemberEdge}
+        />
+      )}
+      {group && (
+        <GroupInspector
+          group={group}
+          onToggle={() => onToggleGroup(group.id)}
+          onIsolate={() => onIsolateGroup(group.id)}
+        />
+      )}
+      {!presentationSelection && node && (
         <div data-testid="node-inspector">
           <dl>
             <dt>Node ID</dt>
@@ -441,8 +821,129 @@ function Inspector({
           </button>
         </div>
       )}
-      {edge && <EdgeInspector edge={edge} />}
+      {!presentationSelection && edge && <EdgeInspector edge={edge} />}
     </aside>
+  );
+}
+
+function GroupInspector({
+  group,
+  onToggle,
+  onIsolate,
+}: {
+  group: DisplayGroup;
+  onToggle: () => void;
+  onIsolate: () => void;
+}) {
+  return (
+    <section data-testid="group-inspector">
+      <h3>{group.label}</h3>
+      <dl>
+        <dt>Group identity</dt>
+        <dd>{group.id}</dd>
+        <dt>Layout</dt>
+        <dd>{group.layout}</dd>
+        <dt>Parent</dt>
+        <dd>{group.parentId ?? "Root"}</dd>
+        <dt>Direct members</dt>
+        <dd>{group.directMemberIds.length}</dd>
+        <dt>Transitive members</dt>
+        <dd>{group.memberNodeIds.length}</dd>
+        <dt>Descendant groups</dt>
+        <dd>{group.descendantGroupIds.length}</dd>
+        <dt>Internal authoritative edges</dt>
+        <dd>{group.internalEdgeIds.length}</dd>
+        <dt>All hidden/crossing authoritative edges</dt>
+        <dd>{group.hiddenEdgeIds.length}</dd>
+      </dl>
+      <details>
+        <summary>Authoritative member identities</summary>
+        <ul>
+          {group.memberNodeIds.map((id) => (
+            <li key={id}>{id}</li>
+          ))}
+        </ul>
+      </details>
+      <details>
+        <summary>Internal authoritative edge identities</summary>
+        <ul>
+          {group.internalEdgeIds.map((id) => (
+            <li className="identity" key={id}>
+              {id}
+            </li>
+          ))}
+        </ul>
+      </details>
+      <div className="inspector-actions">
+        <button type="button" onClick={onToggle}>
+          Toggle collapse
+        </button>
+        <button type="button" onClick={onIsolate}>
+          Isolate group
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function BundleInspector({
+  bundle,
+  model,
+  onSelectMemberEdge,
+}: {
+  bundle: BundleEdge | null;
+  model: DisplayGraph;
+  onSelectMemberEdge: (edgeId: string) => void;
+}) {
+  if (!bundle) {
+    return <p>Selected bundle is no longer visible.</p>;
+  }
+  const edgesById = new Map(model.edges.map((edge) => [edge.id, edge]));
+  return (
+    <section data-testid="bundle-inspector">
+      <h3>Presentation bundle</h3>
+      <p>
+        This boundary aggregate is presentation-only. It has no authoritative
+        source or target port and is never serialized.
+      </p>
+      <dl>
+        <dt>Bundle identity</dt>
+        <dd className="identity">{bundle.id}</dd>
+        <dt>Visible endpoints</dt>
+        <dd>
+          {bundle.sourceKind} {bundle.sourceId} → {bundle.targetKind}{" "}
+          {bundle.targetId}
+        </dd>
+        <dt>Authoritative member count</dt>
+        <dd>{bundle.memberEdgeIds.length}</dd>
+      </dl>
+      <ol className="bundle-members">
+        {bundle.memberEdgeIds.map((edgeId) => {
+          const edge = edgesById.get(edgeId);
+          return (
+            <li key={edgeId}>
+              {edge ? (
+                <>
+                  <span>
+                    {edge.sourceNodeId} {formatPort(edge.sourcePort)} →{" "}
+                    {edge.targetNodeId} {formatPort(edge.targetPort)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Inspect authoritative edge ${edgeId}`}
+                    onClick={() => onSelectMemberEdge(edgeId)}
+                  >
+                    Inspect exact edge
+                  </button>
+                </>
+              ) : (
+                <span>Missing authoritative member {edgeId}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
@@ -486,6 +987,134 @@ function Diagnostics({ model }: { model: DisplayGraph }) {
         <h3>Edges ({model.rawEdges.length})</h3>
         <pre>{JSON.stringify(model.rawEdges, null, 2)}</pre>
       </details>
+    </section>
+  );
+}
+
+function HierarchyDiagnostics({
+  model,
+  hierarchy,
+  projection,
+}: {
+  model: DisplayGraph;
+  hierarchy: DisplayHierarchy;
+  projection: PresentationProjection;
+}) {
+  const diagnostic = projection.diagnostic ?? hierarchy.diagnostics[0] ?? null;
+  if (!diagnostic) {
+    return null;
+  }
+  return (
+    <section
+      className="diagnostic-panel hierarchy-diagnostic"
+      role="alert"
+      aria-labelledby="hierarchy-diagnostic-heading"
+    >
+      <h2 id="hierarchy-diagnostic-heading">
+        Presentation grouping rejected; Raw topology preserved
+      </h2>
+      <p>{hierarchyDiagnosticText(diagnostic)}</p>
+      <p>
+        No partial groups, bundles, layout state, graph PATCH, or execution
+        command were applied.
+      </p>
+      <details>
+        <summary>Exact authoritative raw topology</summary>
+        <h3>Nodes ({model.rawNodes.length})</h3>
+        <pre>{JSON.stringify(model.rawNodes, null, 2)}</pre>
+        <h3>Edges ({model.rawEdges.length})</h3>
+        <pre>{JSON.stringify(model.rawEdges, null, 2)}</pre>
+      </details>
+    </section>
+  );
+}
+
+function HierarchyNavigation({
+  hierarchy,
+  state,
+  selectedGroupId,
+  projection,
+  onMode,
+  onNavigate,
+}: {
+  hierarchy: DisplayHierarchy;
+  state: PresentationState;
+  selectedGroupId: string | null;
+  projection: PresentationProjection;
+  onMode: (mode: "grouped" | "raw") => void;
+  onNavigate: (groupId: string | null) => void;
+}) {
+  const currentGroupId = state.isolatedGroupId ?? selectedGroupId;
+  const breadcrumbs = groupBreadcrumbs(hierarchy, currentGroupId);
+  const currentGroup =
+    state.isolatedGroupId === null
+      ? null
+      : hierarchy.groups.find(
+          (group) => group.id === state.isolatedGroupId,
+        ) ?? null;
+  return (
+    <section className="hierarchy-navigation" aria-label="Hierarchy navigation">
+      <div className="topology-mode" role="group" aria-label="Topology mode">
+        <button
+          type="button"
+          aria-pressed={state.mode === "grouped"}
+          disabled={hierarchy.status !== "valid"}
+          onClick={() => onMode("grouped")}
+        >
+          Grouped topology
+        </button>
+        <button
+          type="button"
+          aria-pressed={state.mode === "raw"}
+          onClick={() => onMode("raw")}
+        >
+          Raw topology
+        </button>
+      </div>
+      {state.mode === "grouped" && projection.mode === "grouped" && (
+        <>
+          <nav className="breadcrumbs" aria-label="Group breadcrumbs">
+            <button
+              type="button"
+              aria-current={currentGroupId === null ? "page" : undefined}
+              onClick={() => onNavigate(null)}
+            >
+              All topology
+            </button>
+            {breadcrumbs.map((group) => (
+              <span key={group.id}>
+                <span aria-hidden="true"> / </span>
+                <button
+                  type="button"
+                  aria-current={
+                    currentGroupId === group.id ? "page" : undefined
+                  }
+                  onClick={() => onNavigate(group.id)}
+                >
+                  {group.label}
+                </button>
+              </span>
+            ))}
+          </nav>
+          {state.isolatedGroupId !== null && (
+            <div className="isolation-actions">
+              <span>Isolated: {currentGroup?.label ?? state.isolatedGroupId}</span>
+              <button
+                type="button"
+                onClick={() => onNavigate(currentGroup?.parentId ?? null)}
+              >
+                {currentGroup?.parentId ? "Return to parent" : "Return to all topology"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      <output className="grouped-counts" data-testid="grouped-counts">
+        Visible: {projection.visibleNodeCount} authoritative nodes,{" "}
+        {projection.visibleGroupCount} groups, {projection.edges.length}{" "}
+        edges/bundles ({projection.bundles.length} bundles); hidden:{" "}
+        {projection.hiddenNodeCount} nodes, {projection.hiddenEdgeCount} edges
+      </output>
     </section>
   );
 }
@@ -585,8 +1214,28 @@ function ParameterEditor({
 
 export default function App() {
   const [model, setModel] = useState<DisplayGraph | null>(null);
+  const [hierarchy, setHierarchy] = useState<DisplayHierarchy>({
+    status: "absent",
+    groups: [],
+    roots: [],
+    nodeDirectGroupIds: {},
+    diagnostics: [],
+  });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selection, setSelection] = useState<Selection>(null);
+  const [authoritativeSelection, setAuthoritativeSelection] =
+    useState<AuthoritativeSelection>(null);
+  const [presentationSelection, setPresentationSelection] =
+    useState<PresentationSelection>(null);
+  const [presentationMode, setPresentationMode] = useState<"grouped" | "raw">(
+    "raw",
+  );
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isolatedGroupId, setIsolatedGroupId] = useState<string | null>(null);
+  const [layoutFallbackDiagnostic, setLayoutFallbackDiagnostic] =
+    useState<HierarchyDiagnostic | null>(null);
+  const hierarchyInitialized = useRef(false);
   const [view, setView] = useState<"topology" | "nodes">("topology");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -598,9 +1247,39 @@ export default function App() {
     const response = await fetch(`${apiBase}/graph`);
     const envelope = await responseEnvelope(response);
     const next = adaptGraphDocument(envelope.data);
+    const nextHierarchy = adaptPresentationGroups(next);
+    const firstHierarchyLoad = !hierarchyInitialized.current;
+    hierarchyInitialized.current = true;
     setModel(next);
+    setHierarchy(nextHierarchy);
     setLoadError(null);
-    setSelection((current) => {
+    setCollapsedGroupIds((current) =>
+      reconcileCollapsedGroups(
+        nextHierarchy,
+        firstHierarchyLoad ? null : current,
+      ),
+    );
+    setPresentationMode((current) =>
+      nextHierarchy.status === "valid"
+        ? firstHierarchyLoad
+          ? "grouped"
+          : current
+        : "raw",
+    );
+    const validGroupIds = new Set(
+      nextHierarchy.groups.map((group) => group.id),
+    );
+    setIsolatedGroupId((current) =>
+      current !== null && validGroupIds.has(current) ? current : null,
+    );
+    setPresentationSelection((current) =>
+      current?.kind === "group" && validGroupIds.has(current.id)
+        ? current
+        : current?.kind === "bundle"
+          ? current
+          : null,
+    );
+    setAuthoritativeSelection((current) => {
       if (current?.kind === "node") {
         return next.nodes.some((node) => node.id === current.id) ? current : null;
       }
@@ -609,6 +1288,103 @@ export default function App() {
       }
       return null;
     });
+  }, []);
+
+  const presentationState = useMemo<PresentationState>(
+    () => ({
+      mode: presentationMode,
+      collapsedGroupIds,
+      isolatedGroupId,
+    }),
+    [collapsedGroupIds, isolatedGroupId, presentationMode],
+  );
+  const projection = useMemo(
+    () =>
+      model
+        ? projectPresentation(model, hierarchy, presentationState)
+        : null,
+    [hierarchy, model, presentationState],
+  );
+  const effectiveProjection = useMemo<PresentationProjection | null>(() => {
+    if (
+      !model ||
+      !projection ||
+      projection.mode === "raw" ||
+      layoutFallbackDiagnostic === null
+    ) {
+      return projection;
+    }
+    return {
+      ...projectPresentation(model, hierarchy, {
+        mode: "raw",
+        collapsedGroupIds: new Set(),
+        isolatedGroupId: null,
+      }),
+      diagnostic: layoutFallbackDiagnostic,
+    };
+  }, [hierarchy, layoutFallbackDiagnostic, model, projection]);
+  const effectivePresentationState = useMemo<PresentationState>(
+    () =>
+      effectiveProjection?.mode === "raw"
+        ? {
+            mode: "raw",
+            collapsedGroupIds: new Set<string>(),
+            isolatedGroupId: null,
+        }
+        : presentationState,
+    [effectiveProjection?.mode, presentationState],
+  );
+  const handleLayoutFallback = useCallback(
+    (diagnostic: HierarchyDiagnostic | null) => {
+      setLayoutFallbackDiagnostic((current) =>
+        current?.code === diagnostic?.code &&
+        current?.entity === diagnostic?.entity &&
+        current?.detail === diagnostic?.detail
+          ? current
+          : diagnostic,
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setLayoutFallbackDiagnostic(null);
+  }, [projection]);
+
+  useEffect(() => {
+    if (
+      (presentationSelection?.kind === "bundle" &&
+        !effectiveProjection?.bundles.some(
+          (bundle) => bundle.id === presentationSelection.id,
+        )) ||
+      (presentationSelection?.kind === "group" &&
+        effectiveProjection?.mode === "raw")
+    ) {
+      setPresentationSelection(null);
+    }
+  }, [effectiveProjection, presentationSelection]);
+
+  const toggleGroup = useCallback((groupId: string) => {
+    setCollapsedGroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }, []);
+
+  const isolateGroup = useCallback((groupId: string) => {
+    setPresentationMode("grouped");
+    setIsolatedGroupId(groupId);
+    setPresentationSelection({ kind: "group", id: groupId });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setAuthoritativeSelection(null);
+    setPresentationSelection(null);
   }, []);
 
   const updateExecution = useCallback(async () => {
@@ -752,6 +1528,13 @@ export default function App() {
               Authoritative inventory: {model.rawNodes.length} nodes,{" "}
               {model.rawEdges.length} edges
             </div>
+            {projection && model.diagnostics.length === 0 && (
+              <HierarchyDiagnostics
+                model={model}
+                hierarchy={hierarchy}
+                projection={projection}
+              />
+            )}
             {model.diagnostics.length > 0 ? (
               <Diagnostics model={model} />
             ) : model.nodes.length === 0 ? (
@@ -769,10 +1552,41 @@ export default function App() {
                         Layout and navigation are presentation-only. Graph structure
                         cannot be edited here.
                       </p>
+                      <HierarchyNavigation
+                        hierarchy={hierarchy}
+                        state={effectivePresentationState}
+                        selectedGroupId={
+                          presentationSelection?.kind === "group"
+                            ? presentationSelection.id
+                            : null
+                        }
+                        projection={effectiveProjection!}
+                        onMode={(mode) => {
+                          setPresentationMode(mode);
+                          setPresentationSelection(null);
+                        }}
+                        onNavigate={(groupId) => {
+                          setPresentationMode("grouped");
+                          setIsolatedGroupId(groupId);
+                          setPresentationSelection(
+                            groupId === null
+                              ? null
+                              : { kind: "group", id: groupId },
+                          );
+                        }}
+                      />
                       <TopologyCanvas
                         model={model}
-                        selection={selection}
-                        onSelect={setSelection}
+                        hierarchy={hierarchy}
+                        projection={effectiveProjection!}
+                        authoritativeSelection={authoritativeSelection}
+                        presentationSelection={presentationSelection}
+                        onAuthoritativeSelect={setAuthoritativeSelection}
+                        onPresentationSelect={setPresentationSelection}
+                        onToggleGroup={toggleGroup}
+                        onIsolateGroup={isolateGroup}
+                        onClearSelection={clearSelection}
+                        onLayoutFallback={handleLayoutFallback}
                       />
                     </>
                   ) : (
@@ -798,10 +1612,13 @@ export default function App() {
                       </div>
                       <NodeTable
                         nodes={model.nodes}
-                        selection={selection}
+                        selection={authoritativeSelection}
                         search={search}
                         typeFilter={typeFilter}
-                        onSelect={setSelection}
+                        onSelect={(selection) => {
+                          setPresentationSelection(null);
+                          setAuthoritativeSelection(selection);
+                        }}
                         onEdit={setEditing}
                       />
                     </>
@@ -809,8 +1626,17 @@ export default function App() {
                 </section>
                 <Inspector
                   model={model}
-                  selection={selection}
+                  hierarchy={hierarchy}
+                  projection={effectiveProjection!}
+                  authoritativeSelection={authoritativeSelection}
+                  presentationSelection={presentationSelection}
                   onEdit={setEditing}
+                  onSelectMemberEdge={(edgeId) => {
+                    setPresentationSelection(null);
+                    setAuthoritativeSelection({ kind: "edge", id: edgeId });
+                  }}
+                  onToggleGroup={toggleGroup}
+                  onIsolateGroup={isolateGroup}
                 />
               </div>
             )}
@@ -832,8 +1658,12 @@ export default function App() {
 }
 
 export {
+  BundleInspector,
   Diagnostics,
   EdgeInspector,
+  GroupInspector,
+  HierarchyDiagnostics,
+  HierarchyNavigation,
   Inspector,
   NodeCard,
   NodeTable,

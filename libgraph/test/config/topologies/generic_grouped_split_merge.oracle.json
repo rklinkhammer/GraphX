@@ -1,0 +1,58 @@
+{
+  "authoritative_nodes": [
+    "interior_1",
+    "interior_2",
+    "merge_1",
+    "merge_2",
+    "sink_1",
+    "sink_2",
+    "source_1",
+    "source_2",
+    "split_1"
+  ],
+  "authoritative_edge_count": 9,
+  "groups": {
+    "pipeline": {
+      "parent": null,
+      "direct_members": ["merge_1", "split_1"],
+      "transitive_members": [
+        "interior_1",
+        "interior_2",
+        "merge_1",
+        "merge_2",
+        "sink_1",
+        "sink_2",
+        "source_1",
+        "source_2",
+        "split_1"
+      ],
+      "children": ["inputs", "outputs", "parallel-stage"]
+    },
+    "inputs": {
+      "parent": "pipeline",
+      "direct_members": ["source_1", "source_2"]
+    },
+    "parallel-stage": {
+      "parent": "pipeline",
+      "direct_members": ["interior_1", "interior_2"]
+    },
+    "outputs": {
+      "parent": "pipeline",
+      "direct_members": ["merge_2", "sink_1", "sink_2"]
+    }
+  },
+  "collapsed_parallel_stage": {
+    "hidden_nodes": ["interior_1", "interior_2"],
+    "internal_edges": [],
+    "bundle_members": [
+      [
+        ["split_1", "name", "Out0", "interior_1", "name", "Input"],
+        ["split_1", "name", "Out1", "interior_2", "name", "Input"]
+      ],
+      [
+        ["interior_1", "name", "Output", "merge_2", "name", "In0"],
+        ["interior_2", "name", "Output", "merge_2", "name", "In1"]
+      ]
+    ]
+  }
+}

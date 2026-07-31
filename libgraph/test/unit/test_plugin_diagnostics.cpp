@@ -46,7 +46,13 @@ TEST(PluginDiagnostics, CanCallAllocateFunction) {
     
     // Try to call it
     void* result = test_alloc();
-    EXPECT_NE(nullptr, result);
+    ASSERT_NE(nullptr, result);
+
+    using DestroyFunc = void (*)(void*);
+    auto destroy = reinterpret_cast<DestroyFunc>(
+        dlsym(handle, "plugin_test_destroy_allocated_interior"));
+    ASSERT_NE(nullptr, destroy) << dlerror();
+    destroy(result);
     
     dlclose(handle);
 }
@@ -82,7 +88,13 @@ TEST(PluginDiagnostics, CanCallCreateFunction) {
     
     // Try to call it
     void* result = test_create();
-    EXPECT_NE(nullptr, result);
+    ASSERT_NE(nullptr, result);
+
+    using DestroyFunc = void (*)(void*);
+    auto destroy = reinterpret_cast<DestroyFunc>(
+        dlsym(handle, "plugin_test_destroy_created_interior"));
+    ASSERT_NE(nullptr, destroy) << dlerror();
+    destroy(result);
     
     dlclose(handle);
 }

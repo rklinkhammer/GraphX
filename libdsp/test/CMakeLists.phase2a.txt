@@ -28,6 +28,11 @@ else()
         graph
         nlohmann_json::nlohmann_json
     )
+    target_link_libraries(libdsp_configuration PRIVATE graphx_project_options)
+    if(UNIX AND NOT APPLE)
+        find_library(GRAPHX_UUID_LIBRARY NAMES uuid REQUIRED)
+        target_link_libraries(libdsp_configuration PUBLIC ${GRAPHX_UUID_LIBRARY})
+    endif()
     target_compile_options(libdsp_configuration PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:/W4>
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>

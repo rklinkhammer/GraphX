@@ -1,0 +1,35 @@
+{
+  "name": "GenericGroupedInvalidCycle",
+  "presentation": {
+    "groups": [
+      {
+        "id": "first",
+        "label": "First",
+        "members": ["source"],
+        "parent": "second",
+        "layout": "grid",
+        "collapsed_by_default": false
+      },
+      {
+        "id": "second",
+        "label": "Second",
+        "members": ["sink"],
+        "parent": "first",
+        "layout": "layered",
+        "collapsed_by_default": false
+      }
+    ]
+  },
+  "nodes": [
+    {"id": "source", "type": "Source"},
+    {"id": "sink", "type": "Sink"}
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

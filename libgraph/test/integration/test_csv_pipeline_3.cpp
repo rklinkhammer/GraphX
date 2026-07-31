@@ -286,6 +286,9 @@ TEST_F(CSVPipeline3Test, GPSBatchParsing) {
  * @brief Benchmark single row parsing time
  */
 TEST_F(CSVPipeline3Test, SingleRowParsingPerformance) {
+#if defined(__SANITIZE_ADDRESS__)
+    GTEST_SKIP() << "Native-speed performance thresholds are not sanitizer gates";
+#endif
     csv::ColumnMapping mapping;
     mapping.field_to_column["timestamp_ns"] = 0;
     mapping.field_to_column["x"] = 1;
@@ -341,6 +344,9 @@ TEST_F(CSVPipeline3Test, SingleRowParsingPerformance) {
  * @brief Benchmark batch parsing performance
  */
 TEST_F(CSVPipeline3Test, BatchParsingPerformance) {
+#if defined(__SANITIZE_ADDRESS__)
+    GTEST_SKIP() << "Native-speed performance thresholds are not sanitizer gates";
+#endif
     auto data_dir = GetTestDataDir();
     auto filepath = data_dir / "accelerometer_test.csv";
     

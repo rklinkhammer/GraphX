@@ -393,6 +393,8 @@ TEST_F(PluginLoaderTest, CreateNodeFromLoadedPlugin) {
     auto [node_handle, facade] = *created;
     EXPECT_NE(node_handle, nullptr);
     EXPECT_NE(facade, nullptr);
+    ASSERT_NE(facade->Destroy, nullptr);
+    facade->Destroy(node_handle);
 }
 
 TEST_F(PluginLoaderTest, CreateNodeExpectedFromLoadedPlugin) {
@@ -407,6 +409,8 @@ TEST_F(PluginLoaderTest, CreateNodeExpectedFromLoadedPlugin) {
     auto [node_handle, facade] = *result;
     EXPECT_NE(node_handle, nullptr);
     EXPECT_NE(facade, nullptr);
+    ASSERT_NE(facade->Destroy, nullptr);
+    facade->Destroy(node_handle);
 }
 
 TEST_F(PluginLoaderTest, CreateNodeExpectedReportsMissingType) {
@@ -521,6 +525,8 @@ TEST_F(PluginLoaderTest, NodeFacadeInterfaceCompliance) {
     EXPECT_NE(facade->GetOutputPortCount, nullptr);
     EXPECT_NE(facade->GetInputPortMetadata, nullptr);
     EXPECT_NE(facade->GetOutputPortMetadata, nullptr);
+    ASSERT_NE(facade->Destroy, nullptr);
+    facade->Destroy(node_handle);
 }
 
 TEST_F(PluginLoaderTest, ABICompatibilityValidation) {

@@ -67,6 +67,33 @@ graph::GraphConfigurationSnapshot MinimalSnapshot(
     return graph::GraphConfigurationSnapshot(std::move(document), revision);
 }
 
+graph::GraphConfigurationSnapshot MinimalSnapshotWithPresentation(
+    const std::string_view variant,
+    const std::uint64_t revision) {
+    auto document = MinimalSnapshot(revision).Document();
+    if (variant == "valid") {
+        document["presentation"] = {
+            {"groups",
+             nlohmann::json::array(
+                 {{{"id", "source-group"},
+                   {"label", "Source group"},
+                   {"members", nlohmann::json::array({"source_1"})},
+                   {"layout", "grid"},
+                   {"collapsed_by_default", false}}})}};
+    } else if (variant == "invalid") {
+        document["presentation"] = {
+            {"groups",
+             nlohmann::json::array(
+                 {{{"id", "invalid-group"},
+                   {"label", "Invalid group"},
+                   {"members", nlohmann::json::array({"missing-node"})},
+                   {"parent", "invalid-group"},
+                   {"layout", "not-a-layout"},
+                   {"collapsed_by_default", "not-a-boolean"}}})}};
+    }
+    return graph::GraphConfigurationSnapshot(std::move(document), revision);
+}
+
 struct BlockingJoinState {
     std::mutex mutex;
     std::condition_variable condition;
@@ -103,6 +130,48 @@ private:
     std::shared_ptr<BlockingJoinState> state_;
 };
 
+class StopDrivenRunPolicy final : public graph::IExecutionPolicy {
+public:
+    bool OnInit(capabilities::GraphCapability&) override { return true; }
+    bool OnStart(capabilities::GraphCapability&) override { return true; }
+    bool OnRun(capabilities::GraphCapability& context) override {
+        while (!context.IsStopped()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return true;
+    }
+};
+
+struct StopDrivenCommandHarness {
+    explicit StopDrivenCommandHarness(
+        const std::size_t operation_retention = 128)
+        : graph(test::TopologyBuilder::BuildTopology(
+              test::TopologyType::MinimalGraph)),
+          graph_capability(std::make_shared<capabilities::GraphCapability>()),
+          metrics(std::make_shared<capabilities::MetricsCapability>()),
+          commands(std::make_shared<capabilities::CommandCapability>(
+              metrics, operation_retention)),
+          executor([this] {
+              graph_capability->SetGraphManager(graph);
+              graph_capability->GetCapabilityBus()
+                  .Register<capabilities::MetricsCapability>(metrics);
+              graph_capability->GetCapabilityBus()
+                  .Register<capabilities::CommandCapability>(commands);
+              auto policies = std::make_unique<graph::ExecutionPolicyChain>(
+                  std::make_unique<StopDrivenRunPolicy>(), nullptr);
+              auto value = std::make_shared<graph::GraphExecutor>(
+                  std::move(policies), graph_capability);
+              commands->BindExecutor(value);
+              return value;
+          }()) {}
+
+    std::shared_ptr<graph::GraphManager> graph;
+    std::shared_ptr<capabilities::GraphCapability> graph_capability;
+    std::shared_ptr<capabilities::MetricsCapability> metrics;
+    std::shared_ptr<capabilities::CommandCapability> commands;
+    std::shared_ptr<graph::GraphExecutor> executor;
+};
+
 }  // namespace
 
 TEST(CommandCapabilityPhase0Test, DiscoveryIsTypedAndComplete) {
@@ -113,6 +182,45 @@ TEST(CommandCapabilityPhase0Test, DiscoveryIsTypedAndComplete) {
     EXPECT_FALSE(descriptors[0].asynchronous);
     EXPECT_EQ(descriptors[3].name, capabilities::CommandName::Run);
     EXPECT_TRUE(descriptors[3].asynchronous);
+}
+
+TEST(CommandCapabilityPhase2PresentationIsolationTest,
+     AbsentValidAndInvalidPresentationConstructAndExecuteIdentically) {
+    std::uint64_t revision = 10;
+    for (const std::string_view variant : {"absent", "valid", "invalid"}) {
+        auto executor =
+            graph::GraphExecutorBuilder()
+                .WithGraphSnapshot(
+                    MinimalSnapshotWithPresentation(variant, revision++))
+                .WithPluginDirectory(PLUGIN_OUTPUT_DIRECTORY)
+                .Build();
+        auto commands =
+            executor->GetCapability<capabilities::CommandCapability>();
+        ASSERT_NE(commands, nullptr) << variant;
+
+        const auto initialized =
+            commands->Submit({.name = capabilities::CommandName::Init});
+        ASSERT_TRUE(initialized.success)
+            << variant << ": " << initialized.message;
+        const auto manager = executor->GetGraphManager();
+        ASSERT_NE(manager, nullptr) << variant;
+        EXPECT_EQ(manager->NodeCount(), 2u) << variant;
+        EXPECT_EQ(manager->EdgeCount(), 1u) << variant;
+
+        const auto started =
+            commands->Submit({.name = capabilities::CommandName::Start});
+        ASSERT_TRUE(started.success) << variant << ": " << started.message;
+        const auto run =
+            commands->Submit({.name = capabilities::CommandName::Run});
+        ASSERT_TRUE(run.success) << variant << ": " << run.message;
+        const auto completed =
+            WaitForOperation(commands, run.operation_id);
+        EXPECT_TRUE(completed.success)
+            << variant << ": " << completed.message;
+        EXPECT_EQ(executor->GetExecutionState(),
+                  graph::ExecutionState::STOPPED)
+            << variant;
+    }
 }
 
 TEST(CommandCapabilityPhase0Test, InvalidConfiguredTransitionsFailTruthfully) {
@@ -224,7 +332,7 @@ TEST(CommandCapabilityPhase0Test,
 
 TEST(CommandCapabilityPhase0Test,
      StopCancelsRunAndRunWorkerPerformsSoleTeardown) {
-    CommandHarness harness;
+    StopDrivenCommandHarness harness;
     ASSERT_TRUE(harness.commands
                     ->Submit({.name = capabilities::CommandName::Init})
                     .success);
@@ -252,16 +360,8 @@ TEST(CommandCapabilityPhase0Test,
 }
 
 TEST(CommandCapabilityPhase0Test, RetentionIsBounded) {
-    auto graph = test::TopologyBuilder::BuildTopology(
-        test::TopologyType::MinimalGraph);
-    auto executor = graph::GraphExecutorBuilder()
-                        .WithGraphManager(graph)
-                        .Build();
-    auto metrics =
-        executor->GetCapability<capabilities::MetricsCapability>();
-    auto commands =
-        std::make_shared<capabilities::CommandCapability>(metrics, 2);
-    commands->BindExecutor(executor);
+    StopDrivenCommandHarness harness{2};
+    auto& commands = harness.commands;
     ASSERT_TRUE(commands->Submit({.name = capabilities::CommandName::Init})
                     .success);
     ASSERT_TRUE(commands->Submit({.name = capabilities::CommandName::Start})
@@ -307,7 +407,7 @@ TEST(CommandCapabilityPhase0Test, DestructionJoinsActiveWorker) {
 
 TEST(CommandCapabilityPhase0Test,
      InitializedAndRunningRejectEveryNonTableTransition) {
-    CommandHarness harness;
+    StopDrivenCommandHarness harness;
     ASSERT_TRUE(harness.commands
                     ->Submit({.name = capabilities::CommandName::Init})
                     .success);

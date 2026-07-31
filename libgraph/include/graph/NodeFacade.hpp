@@ -462,8 +462,9 @@ public:
     /**
      * Cleanup the node - calls facade Destroy() callback
      * 
-     * This must be called explicitly BEFORE the adapter is destroyed
-     * to ensure Destroy() happens while the node is still alive.
+     * Graph owners should call this explicitly before releasing any plugin
+     * library or graph-owned objects that refer to the node. The destructor
+     * invokes it as an idempotent RAII fallback.
      * 
      * Called automatically by GraphManager during its destructor
      * BEFORE clearing the nodes_ vector.

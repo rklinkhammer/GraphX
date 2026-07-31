@@ -60,18 +60,16 @@ bool FacadeTrue(graph::NodeHandle) {
     return true;
 }
 
-/**
- * @brief Facade noop.
- * @param graph::NodeHandle Parameter for facade noop.
- */
-void FacadeNoop(graph::NodeHandle) {
-}
-
 int facade_stop_calls = 0;
 int facade_join_calls = 0;
+int facade_destroy_calls = 0;
 
 void FacadeStop(graph::NodeHandle) {
     ++facade_stop_calls;
+}
+
+void FacadeDestroy(graph::NodeHandle) {
+    ++facade_destroy_calls;
 }
 
 bool FacadeJoin(graph::NodeHandle) {
@@ -108,7 +106,7 @@ graph::NodeFacadeAdapter MakeAdapterWithMetadataService(
         .GetAsIParameterized = nullptr,
         .GetAsIMetricsCallbackProvider = nullptr,
         .GetAsICompletionCallback = nullptr,
-        .Destroy = FacadeNoop,
+        .Destroy = FacadeDestroy,
     };
 
     return graph::NodeFacadeAdapter(&handle_storage, &facade, metadata_service);
@@ -120,6 +118,23 @@ TEST(NodeFacadeAdapterTest, MetadataServiceCtorInjectsDescriptorProvider) {
 
     const auto descriptor = adapter.GetDescriptor();
     EXPECT_EQ(descriptor.name, "metadata_service_descriptor_provider");
+}
+
+TEST(NodeFacadeAdapterTest, CleanupDestroysOwnedHandleExactlyOnce) {
+    facade_destroy_calls = 0;
+    {
+        auto adapter = MakeAdapterWithMetadataService(nullptr);
+        adapter.Cleanup();
+        adapter.Cleanup();
+        EXPECT_EQ(facade_destroy_calls, 1);
+    }
+    EXPECT_EQ(facade_destroy_calls, 1);
+}
+
+TEST(NodeFacadeAdapterTest, DestructorDestroysOwnedHandle) {
+    facade_destroy_calls = 0;
+    { auto adapter = MakeAdapterWithMetadataService(nullptr); }
+    EXPECT_EQ(facade_destroy_calls, 1);
 }
 
 TEST(NodeFacadeAdapterTest, StopRetainsJoinRequiredStateUntilJoinCompletes) {

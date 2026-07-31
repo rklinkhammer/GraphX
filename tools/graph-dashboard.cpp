@@ -118,6 +118,21 @@ std::filesystem::path ResolveExecutable(const std::string_view argument) {
   return std::filesystem::absolute(std::filesystem::path{argument}, error);
 }
 
+std::filesystem::path DashboardIndexPath(
+    const std::filesystem::path &executable) {
+  std::error_code error;
+  const auto executable_directory =
+      std::filesystem::weakly_canonical(executable.parent_path(), error);
+  error.clear();
+  const auto build_directory = std::filesystem::weakly_canonical(
+      std::filesystem::path{GRAPHX_DASHBOARD_BUILD_DIRECTORY}, error);
+  if (!error && executable_directory == build_directory) {
+    return std::filesystem::path{GRAPHX_DASHBOARD_SOURCE_INDEX};
+  }
+  return executable.parent_path().parent_path() / "share" / "graphx" /
+         "dashboard" / "index.html";
+}
+
 } // namespace
 
 int main(const int argc, char **argv) {
@@ -173,13 +188,7 @@ int main(const int argc, char **argv) {
   }
 
   const auto executable = ResolveExecutable(argv[0]);
-  auto index_path =
-      executable.parent_path().parent_path() / "share" / "graphx" /
-      "dashboard" / "index.html";
-  std::error_code resource_error;
-  if (!std::filesystem::is_regular_file(index_path, resource_error)) {
-    index_path.clear();
-  }
+  const auto index_path = DashboardIndexPath(executable);
   auto commands =
       executor->GetCapability<capabilities::CommandCapability>();
   auto metrics =

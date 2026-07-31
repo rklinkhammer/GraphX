@@ -1,0 +1,42 @@
+{
+  "name": "invalid-groups",
+  "presentation": {
+    "groups": [
+      {
+        "id": "first",
+        "label": "First",
+        "members": ["middle"],
+        "parent": "second",
+        "layout": "grid",
+        "collapsed_by_default": false
+      },
+      {
+        "id": "second",
+        "label": "Second",
+        "members": ["middle"],
+        "parent": "first",
+        "layout": "layered",
+        "collapsed_by_default": false
+      }
+    ]
+  },
+  "nodes": [
+    {"id": "source", "type": "Source"},
+    {"id": "middle", "type": "Process"},
+    {"id": "sink", "type": "Sink"}
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port": 0,
+      "target_node_id": "middle",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "middle",
+      "source_port": 0,
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

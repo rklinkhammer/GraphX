@@ -58,13 +58,116 @@ export interface DisplayGraph {
   rawEdges: unknown[];
 }
 
-export type Selection =
+export type AuthoritativeSelection =
   | { kind: "node"; id: string }
   | { kind: "edge"; id: string }
   | null;
 
+export type Selection = AuthoritativeSelection;
+
+export type GroupLayoutMode = "layered" | "grid" | "fanout" | "fanin";
+
+export interface HierarchyDiagnostic {
+  code: string;
+  entity: string;
+  detail: string;
+}
+
+export interface DisplayGroup {
+  id: string;
+  label: string;
+  directMemberIds: string[];
+  memberNodeIds: string[];
+  descendantGroupIds: string[];
+  parentId: string | null;
+  childIds: string[];
+  depth: number;
+  layout: GroupLayoutMode;
+  collapsedByDefault: boolean;
+  internalEdgeIds: string[];
+  hiddenEdgeIds: string[];
+}
+
+export interface DisplayHierarchy {
+  status: "absent" | "valid" | "invalid";
+  groups: DisplayGroup[];
+  roots: string[];
+  nodeDirectGroupIds: Record<string, string>;
+  diagnostics: HierarchyDiagnostic[];
+}
+
+export interface PresentationState {
+  mode: "grouped" | "raw";
+  collapsedGroupIds: ReadonlySet<string>;
+  isolatedGroupId: string | null;
+}
+
+export type PresentationSelection =
+  | { kind: "group"; id: string }
+  | { kind: "bundle"; id: string }
+  | null;
+
+export interface BundleEdge {
+  id: string;
+  sourceId: string;
+  sourceKind: "node" | "group";
+  targetId: string;
+  targetKind: "node" | "group";
+  memberEdgeIds: string[];
+}
+
+export interface ProjectedNode {
+  id: string;
+  kind: "node" | "group";
+  parentId: string | null;
+  node?: DisplayNode;
+  group?: DisplayGroup;
+  collapsed?: boolean;
+}
+
+export type ProjectedEdge =
+  | {
+      kind: "edge";
+      id: string;
+      edge: DisplayEdge;
+      sourceId: string;
+      sourceKind: "node" | "group";
+      targetId: string;
+      targetKind: "node" | "group";
+    }
+  | { kind: "bundle"; id: string; bundle: BundleEdge };
+
+export interface PresentationProjection {
+  mode: "grouped" | "raw";
+  nodes: ProjectedNode[];
+  edges: ProjectedEdge[];
+  bundles: BundleEdge[];
+  visibleNodeCount: number;
+  visibleGroupCount: number;
+  hiddenNodeCount: number;
+  hiddenEdgeCount: number;
+  diagnostic: HierarchyDiagnostic | null;
+}
+
 export interface NodeCardData extends Record<string, unknown> {
+  kind: "node";
   node: DisplayNode;
   selected: boolean;
+  presentationBoundaryInput: boolean;
+  presentationBoundaryOutput: boolean;
   onSelect?: (selection: Selection) => void;
 }
+
+export interface GroupCardData extends Record<string, unknown> {
+  kind: "group";
+  group: DisplayGroup;
+  collapsed: boolean;
+  containsSelection: boolean;
+  presentationBoundaryInput: boolean;
+  presentationBoundaryOutput: boolean;
+  onSelect?: (selection: PresentationSelection) => void;
+  onToggle?: (groupId: string) => void;
+  onIsolate?: (groupId: string) => void;
+}
+
+export type CanvasNodeData = NodeCardData | GroupCardData;

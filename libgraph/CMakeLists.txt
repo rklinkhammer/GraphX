@@ -72,6 +72,12 @@ if(ENABLE_TSAN)
     # Consumers of this static library must link the TSAN runtime.
     target_link_options(graph PUBLIC -fsanitize=thread)
 endif()
+if(ENABLE_ASAN_UBSAN)
+    target_compile_options(graph PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    # Consumers of this static library must link the sanitizer runtimes.
+    target_link_options(graph PUBLIC -fsanitize=address,undefined)
+endif()
 
 # Installation
 set(GRAPH_CMAKE_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/graph")

@@ -269,6 +269,30 @@ TEST_F(GraphCoordinatorTest, UpdateNodeConfigSuccessful) {
     EXPECT_EQ(updated["param2"], "updated");
 }
 
+TEST_F(GraphCoordinatorTest,
+       UpdateNodeConfigPreservesTopLevelPresentationMetadataExactly) {
+    graph_["presentation"] = {
+        {"groups",
+         json::array(
+             {{{"id", "nested-view"},
+               {"label", "Nested view"},
+               {"members", json::array({"node_1", "node_2"})},
+               {"layout", "layered"},
+               {"collapsed_by_default", true}}})}};
+    const auto expected_presentation = graph_["presentation"];
+    graph::GraphCoordinator coordinator(graph_);
+
+    ASSERT_TRUE(coordinator.UpdateNodeConfig(
+        "node_1", json::object({{"param1", 77}})));
+
+    const auto updated = coordinator.GetGraphJson();
+    ASSERT_TRUE(updated.contains("presentation"));
+    EXPECT_EQ(updated["presentation"], expected_presentation);
+    EXPECT_FALSE(updated["presentation"].contains("collapsedGroupIds"));
+    EXPECT_FALSE(updated["presentation"].contains("isolatedGroupId"));
+    EXPECT_FALSE(updated["presentation"].contains("positions"));
+}
+
 TEST_F(GraphCoordinatorTest, UpdateNodeConfigNotFound) {
     graph::GraphCoordinator coordinator(graph_);
 

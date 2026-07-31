@@ -38,7 +38,7 @@ class Phase5QualificationTest(unittest.TestCase):
         artifacts.mkdir()
         for index, evidence in enumerate(registry["evidence"]):
             target = artifacts / f"evidence-{index}.json"
-            target.hardlink_to(ROOT / evidence["artifact"])
+            shutil.copy2(ROOT / evidence["artifact"], target)
             evidence["artifact"] = target.relative_to(self.root).as_posix()
             evidence["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
         registry_path.write_bytes(phase5.canonical(registry))
@@ -66,7 +66,7 @@ class Phase5QualificationTest(unittest.TestCase):
                 self.fail(f"required Phase 5 fixture input is missing: {source}")
             target = self.root / relative_path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.hardlink_to(source)
+            shutil.copy2(source, target)
         # Historical Phase 5 evidence remains immutable provenance. The unit
         # fixture, however, binds the current source/build tree, so its private
         # nested attestation must identify every copied source, suite input,

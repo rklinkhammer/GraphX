@@ -7,6 +7,7 @@ import type {
   GraphNodeDocument,
   PortKey,
 } from "./types";
+import { compareCodeUnits } from "./identity";
 
 const own = (value: object, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(value, key);
@@ -94,7 +95,7 @@ function parsePort(
 }
 
 function comparePorts(left: DisplayPort, right: DisplayPort): number {
-  return portIdentity(left.key).localeCompare(portIdentity(right.key));
+  return compareCodeUnits(portIdentity(left.key), portIdentity(right.key));
 }
 
 function addPort(node: DisplayNode, port: DisplayPort): void {
@@ -291,7 +292,7 @@ export function adaptGraphDocument(document: unknown): DisplayGraph {
     });
   });
 
-  nodes.sort((left, right) => left.id.localeCompare(right.id));
-  edges.sort((left, right) => left.id.localeCompare(right.id));
+  nodes.sort((left, right) => compareCodeUnits(left.id, right.id));
+  edges.sort((left, right) => compareCodeUnits(left.id, right.id));
   return { document: graph, nodes, edges, diagnostics, rawNodes, rawEdges };
 }
