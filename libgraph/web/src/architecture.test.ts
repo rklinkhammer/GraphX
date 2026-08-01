@@ -52,6 +52,10 @@ describe("generic dashboard architecture scan", () => {
       "cdn.jsdelivr.net",
       "/api/v1/groups",
       "/api/v1/topology",
+      "/api/v1/preferences",
+      "/api/v1/metrics",
+      "command console",
+      "document.cookie",
     ]) {
       expect(source).not.toContain(forbidden);
     }
@@ -63,6 +67,33 @@ describe("generic dashboard architecture scan", () => {
     expect(source).not.toMatch(/\bmessage schedule\b/i);
     expect(source).not.toMatch(/\bIQ metadata\b/i);
     expect(source).not.toMatch(/\breceiver\b/i);
+  });
+
+  test("keeps presentation preferences local and excludes Phase 4/server state", () => {
+    const app = read("libgraph/web/src/App.tsx");
+    const preferences = read("libgraph/web/src/preferences.ts");
+    const server = [
+      read("libgraph/src/graph/GraphHttpServer.cpp"),
+      read("libgraph/include/graph/GraphHttpServer.hpp"),
+    ].join("\n");
+    expect(preferences).toContain('"graphx.dashboard.presentation"');
+    expect(preferences).toContain('cryptoProvider.subtle.digest("SHA-256"');
+    expect(preferences).not.toContain("fetch(");
+    expect(server).not.toContain("graphx.dashboard.presentation");
+    expect(app.match(/`\$\{apiBase\}\/graph`/g)).toHaveLength(1);
+    expect(app).not.toContain("document.cookie");
+    expect(app).not.toContain("/metrics");
+  });
+
+  test("declares focused keyboard, reflow, forced-color, and reduced-motion protections", () => {
+    const app = read("libgraph/web/src/App.tsx");
+    const styles = read("libgraph/web/src/styles.css");
+    expect(app).toContain("Skip to dashboard view controls");
+    expect(app).not.toMatch(/tabIndex=\{?[1-9]/);
+    expect(styles).toContain("@media (max-width: 480px)");
+    expect(styles).toContain("@media (forced-colors: active)");
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(styles).toContain("outline: 3px solid");
   });
 
   test("uses one graph authority and exposes no structural mutation gesture", () => {

@@ -32,6 +32,16 @@ import {
   projectPresentation,
   reconcileCollapsedGroups,
 } from "./presentation";
+import {
+  graphSignature,
+  PRESENTATION_PREFERENCE_KEY,
+  readPresentationPreferences,
+  removePresentationPreferences,
+  writePresentationPreferences,
+  type PresentationPreferences,
+  type PresentationViewport,
+} from "./preferences";
+import { SemanticTopology } from "./SemanticTopology";
 import type {
   AuthoritativeSelection,
   BundleEdge,
@@ -65,6 +75,24 @@ interface ExecutionState {
   active_revision: number | null;
   graph_generation: number;
   configuration_dirty: boolean;
+}
+
+function deterministicPresentationDefaults(hierarchy: DisplayHierarchy): {
+  mode: "grouped" | "raw";
+  collapsedGroupIds: Set<string>;
+  semanticExpandedGroupIds: Set<string>;
+} {
+  return {
+    mode: hierarchy.status === "valid" ? "grouped" : "raw",
+    collapsedGroupIds: new Set(
+      hierarchy.groups
+        .filter((group) => group.collapsedByDefault)
+        .map((group) => group.id),
+    ),
+    semanticExpandedGroupIds: new Set(
+      hierarchy.groups.map((group) => group.id),
+    ),
+  };
 }
 
 async function responseEnvelope(response: Response): Promise<ApiEnvelope> {
@@ -273,6 +301,10 @@ interface TopologyCanvasProps {
   onIsolateGroup: (groupId: string) => void;
   onClearSelection: () => void;
   onLayoutFallback: (diagnostic: HierarchyDiagnostic | null) => void;
+  preferredViewport: PresentationViewport | null;
+  viewportResetRevision: number;
+  reducedMotion: boolean;
+  onViewportChange: (viewport: PresentationViewport) => void;
 }
 
 function TopologyCanvasBody({
@@ -287,7 +319,12 @@ function TopologyCanvasBody({
   onIsolateGroup,
   onClearSelection,
   onLayoutFallback,
+  preferredViewport,
+  viewportResetRevision,
+  reducedMotion,
+  onViewportChange,
 }: TopologyCanvasProps) {
+  const operatorMotionDurationMs = reducedMotion ? 0 : 200;
   const [nodes, setNodes] = useState<Node<CanvasNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [layoutDiagnostic, setLayoutDiagnostic] = useState<string | null>(null);
@@ -295,8 +332,10 @@ function TopologyCanvasBody({
   const [layoutInvocationCount, setLayoutInvocationCount] = useState(0);
   const authoritativeSelectionRef = useRef(authoritativeSelection);
   const presentationSelectionRef = useRef(presentationSelection);
+  const preferredViewportRef = useRef(preferredViewport);
   authoritativeSelectionRef.current = authoritativeSelection;
   presentationSelectionRef.current = presentationSelection;
+  preferredViewportRef.current = preferredViewport;
   const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useReactFlow();
   const selectedNodeId =
     authoritativeSelection?.kind === "node"
@@ -321,11 +360,9 @@ function TopologyCanvasBody({
       if (!current) {
         return;
       }
-      onLayoutFallback(
-        projection.mode === "grouped" && layout.fellBackToRaw
-          ? layout.diagnostic
-          : null,
-      );
+      if (projection.mode === "grouped") {
+        onLayoutFallback(layout.fellBackToRaw ? layout.diagnostic : null);
+      }
       const currentAuthoritativeSelection = authoritativeSelectionRef.current;
       const currentPresentationSelection = presentationSelectionRef.current;
       setNodes(
@@ -375,7 +412,11 @@ function TopologyCanvasBody({
         layout.diagnostic ? hierarchyDiagnosticText(layout.diagnostic) : null,
       );
       requestAnimationFrame(() => {
-        void fitView({ padding: 0.16, duration: 0 });
+        if (preferredViewportRef.current) {
+          void setViewport(preferredViewportRef.current, { duration: 0 });
+        } else {
+          void fitView({ padding: 0.16, duration: 0 });
+        }
       });
     });
     return () => {
@@ -392,6 +433,8 @@ function TopologyCanvasBody({
     onPresentationSelect,
     onToggleGroup,
     projection,
+    setViewport,
+    viewportResetRevision,
   ]);
 
   useEffect(() => {
@@ -432,6 +475,7 @@ function TopologyCanvasBody({
           { ...viewport, x: viewport.x + panStep },
           { duration: 0 },
         );
+        onViewportChange({ ...viewport, x: viewport.x + panStep });
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         event.stopPropagation();
@@ -439,6 +483,7 @@ function TopologyCanvasBody({
           { ...viewport, x: viewport.x - panStep },
           { duration: 0 },
         );
+        onViewportChange({ ...viewport, x: viewport.x - panStep });
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
@@ -446,6 +491,7 @@ function TopologyCanvasBody({
           { ...viewport, y: viewport.y + panStep },
           { duration: 0 },
         );
+        onViewportChange({ ...viewport, y: viewport.y + panStep });
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
@@ -453,17 +499,18 @@ function TopologyCanvasBody({
           { ...viewport, y: viewport.y - panStep },
           { duration: 0 },
         );
+        onViewportChange({ ...viewport, y: viewport.y - panStep });
       } else if (event.key === "+" || event.key === "=") {
         event.preventDefault();
         event.stopPropagation();
-        void zoomIn({ duration: 0 });
+        void zoomIn({ duration: 0 }).then(() => onViewportChange(getViewport()));
       } else if (event.key === "-" || event.key === "_") {
         event.preventDefault();
         event.stopPropagation();
-        void zoomOut({ duration: 0 });
+        void zoomOut({ duration: 0 }).then(() => onViewportChange(getViewport()));
       }
     },
-    [getViewport, setViewport, zoomIn, zoomOut],
+    [getViewport, onViewportChange, setViewport, zoomIn, zoomOut],
   );
 
   const handleTopologyKeyDown = useCallback(
@@ -499,17 +546,22 @@ function TopologyCanvasBody({
   );
 
   return (
-    <section className="topology-shell" aria-labelledby="topology-heading">
+    <section
+      className="topology-shell"
+      aria-labelledby="topology-heading"
+      data-motion-duration-ms={operatorMotionDurationMs}
+      data-reduced-motion={reducedMotion ? "reduce" : "no-preference"}
+    >
       <div className="topology-toolbar" role="toolbar" aria-label="Topology view controls">
-        <button type="button" onClick={() => void zoomIn()} aria-label="Zoom in topology">
+        <button type="button" onClick={() => void zoomIn({ duration: operatorMotionDurationMs }).then(() => onViewportChange(getViewport()))} aria-label="Zoom in topology">
           Zoom in
         </button>
-        <button type="button" onClick={() => void zoomOut()} aria-label="Zoom out topology">
+        <button type="button" onClick={() => void zoomOut({ duration: operatorMotionDurationMs }).then(() => onViewportChange(getViewport()))} aria-label="Zoom out topology">
           Zoom out
         </button>
         <button
           type="button"
-          onClick={() => void fitView({ padding: 0.16, duration: 0 })}
+          onClick={() => void fitView({ padding: 0.16, duration: operatorMotionDurationMs }).then(() => onViewportChange(getViewport()))}
           aria-label="Fit topology to view"
         >
           Fit to view
@@ -519,6 +571,7 @@ function TopologyCanvasBody({
           onClick={() => {
             setLayoutRevision((revision) => revision + 1);
             void setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 0 });
+            onViewportChange({ x: 0, y: 0, zoom: 1 });
           }}
           aria-label="Reset deterministic topology layout"
         >
@@ -547,12 +600,12 @@ function TopologyCanvasBody({
           </details>
         </div>
       )}
-      <output className="sr-only" data-testid="canvas-edge-count">
+      <span className="sr-only" aria-hidden="true" data-testid="canvas-edge-count">
         Canvas edge model contains {edges.length} edges
-      </output>
-      <output className="sr-only" data-testid="layout-invocation-count">
+      </span>
+      <span className="sr-only" aria-hidden="true" data-testid="layout-invocation-count">
         Layout invocation count {layoutInvocationCount}
-      </output>
+      </span>
       <div
         className="topology-canvas"
         data-testid="topology-canvas"
@@ -599,8 +652,13 @@ function TopologyCanvasBody({
             }
           }}
           onPaneClick={onClearSelection}
+          onMoveEnd={(event, viewport) => {
+            if (event !== null) {
+              onViewportChange(viewport);
+            }
+          }}
           proOptions={{ hideAttribution: true }}
-          minZoom={0.05}
+          minZoom={0.1}
           maxZoom={4}
           onlyRenderVisibleElements={false}
         >
@@ -755,8 +813,8 @@ function Inspector({
   projection: PresentationProjection;
   authoritativeSelection: AuthoritativeSelection;
   presentationSelection: PresentationSelection;
-  onEdit: (node: DisplayNode) => void;
-  onSelectMemberEdge: (edgeId: string) => void;
+  onEdit: (node: DisplayNode, invoker: HTMLElement) => void;
+  onSelectMemberEdge: (edgeId: string, invoker: HTMLElement) => void;
   onToggleGroup: (groupId: string) => void;
   onIsolateGroup: (groupId: string) => void;
 }) {
@@ -781,7 +839,7 @@ function Inspector({
 
   return (
     <aside className="inspector" aria-labelledby="inspector-heading">
-      <h2 id="inspector-heading">Inspector</h2>
+      <h2 id="inspector-heading" tabIndex={-1}>Inspector</h2>
       {!node && !edge && !group && presentationSelection?.kind !== "bundle" && (
         <p>Select a node, edge, group, or bundle to inspect it.</p>
       )}
@@ -816,7 +874,7 @@ function Inspector({
             <dd>{node.outputPorts.map((port) => formatPort(port.key)).join(", ") || "None"}</dd>
           </dl>
           <pre>{JSON.stringify(node.document.node_config ?? {}, null, 2)}</pre>
-          <button type="button" onClick={() => onEdit(node)}>
+          <button type="button" onClick={(event) => onEdit(node, event.currentTarget)}>
             Edit node parameters
           </button>
         </div>
@@ -893,7 +951,7 @@ function BundleInspector({
 }: {
   bundle: BundleEdge | null;
   model: DisplayGraph;
-  onSelectMemberEdge: (edgeId: string) => void;
+  onSelectMemberEdge: (edgeId: string, invoker: HTMLElement) => void;
 }) {
   if (!bundle) {
     return <p>Selected bundle is no longer visible.</p>;
@@ -930,8 +988,10 @@ function BundleInspector({
                   </span>
                   <button
                     type="button"
-                    aria-label={`Inspect authoritative edge ${edgeId}`}
-                    onClick={() => onSelectMemberEdge(edgeId)}
+                    aria-label={`Inspect exact edge: ${edgeId}`}
+                    onClick={(event) =>
+                      onSelectMemberEdge(edgeId, event.currentTarget)
+                    }
                   >
                     Inspect exact edge
                   </button>
@@ -945,6 +1005,41 @@ function BundleInspector({
       </ol>
     </section>
   );
+}
+
+function focusPersistentInspectorHeading(): void {
+  requestAnimationFrame(() => {
+    document.getElementById("inspector-heading")?.focus();
+  });
+}
+
+function presentationSelectionSurvivesRefresh(
+  selection: PresentationSelection,
+  graph: DisplayGraph,
+  hierarchy: DisplayHierarchy,
+  state: PresentationState,
+): boolean {
+  if (selection === null) {
+    return true;
+  }
+  if (selection.kind === "group") {
+    return hierarchy.status === "valid" &&
+      hierarchy.groups.some((group) => group.id === selection.id);
+  }
+  if (hierarchy.status !== "valid") {
+    return false;
+  }
+  const groupedState: PresentationState =
+    state.mode === "grouped" ? state : { ...state, mode: "grouped" };
+  return projectPresentation(graph, hierarchy, groupedState).bundles.some(
+    (bundle) => bundle.id === selection.id,
+  );
+}
+
+function removedSelectionNotice(
+  selection: Exclude<AuthoritativeSelection | PresentationSelection, null>,
+): string {
+  return `Selected ${selection.kind} ${selection.id} was removed by the graph refresh; selection cleared.`;
 }
 
 function EdgeInspector({ edge }: { edge: DisplayEdge }) {
@@ -1042,7 +1137,7 @@ function HierarchyNavigation({
   selectedGroupId: string | null;
   projection: PresentationProjection;
   onMode: (mode: "grouped" | "raw") => void;
-  onNavigate: (groupId: string | null) => void;
+  onNavigate: (groupId: string | null, invoker: HTMLElement) => void;
 }) {
   const currentGroupId = state.isolatedGroupId ?? selectedGroupId;
   const breadcrumbs = groupBreadcrumbs(hierarchy, currentGroupId);
@@ -1076,8 +1171,9 @@ function HierarchyNavigation({
           <nav className="breadcrumbs" aria-label="Group breadcrumbs">
             <button
               type="button"
+              data-focus-key="all-topology"
               aria-current={currentGroupId === null ? "page" : undefined}
-              onClick={() => onNavigate(null)}
+              onClick={(event) => onNavigate(null, event.currentTarget)}
             >
               All topology
             </button>
@@ -1086,10 +1182,11 @@ function HierarchyNavigation({
                 <span aria-hidden="true"> / </span>
                 <button
                   type="button"
+                  data-focus-group={group.id}
                   aria-current={
                     currentGroupId === group.id ? "page" : undefined
                   }
-                  onClick={() => onNavigate(group.id)}
+                  onClick={(event) => onNavigate(group.id, event.currentTarget)}
                 >
                   {group.label}
                 </button>
@@ -1101,7 +1198,9 @@ function HierarchyNavigation({
               <span>Isolated: {currentGroup?.label ?? state.isolatedGroupId}</span>
               <button
                 type="button"
-                onClick={() => onNavigate(currentGroup?.parentId ?? null)}
+                onClick={(event) =>
+                  onNavigate(currentGroup?.parentId ?? null, event.currentTarget)
+                }
               >
                 {currentGroup?.parentId ? "Return to parent" : "Return to all topology"}
               </button>
@@ -1109,12 +1208,12 @@ function HierarchyNavigation({
           )}
         </>
       )}
-      <output className="grouped-counts" data-testid="grouped-counts">
+      <p className="grouped-counts" data-testid="grouped-counts">
         Visible: {projection.visibleNodeCount} authoritative nodes,{" "}
         {projection.visibleGroupCount} groups, {projection.edges.length}{" "}
         edges/bundles ({projection.bundles.length} bundles); hidden:{" "}
         {projection.hiddenNodeCount} nodes, {projection.hiddenEdgeCount} edges
-      </output>
+      </p>
     </section>
   );
 }
@@ -1136,7 +1235,8 @@ function ParameterEditor({
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    textarea.current?.focus();
+    const frame = requestAnimationFrame(() => textarea.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   return (
@@ -1150,6 +1250,32 @@ function ParameterEditor({
         role="dialog"
         aria-modal="true"
         aria-labelledby="editor-heading"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+            return;
+          }
+          if (event.key !== "Tab") {
+            return;
+          }
+          const controls = [...event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), textarea, input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          )];
+          if (controls.length === 0) {
+            event.preventDefault();
+            return;
+          }
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
       >
         <h2 id="editor-heading">Edit node parameters</h2>
         <dl>
@@ -1212,6 +1338,29 @@ function ParameterEditor({
   );
 }
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener?.("change", update);
+    return () => query.removeEventListener?.("change", update);
+  }, []);
+  return reduced;
+}
+
 export default function App() {
   const [model, setModel] = useState<DisplayGraph | null>(null);
   const [hierarchy, setHierarchy] = useState<DisplayHierarchy>({
@@ -1232,52 +1381,210 @@ export default function App() {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
     new Set(),
   );
+  const [semanticExpandedGroupIds, setSemanticExpandedGroupIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [preferredViewport, setPreferredViewport] =
+    useState<PresentationViewport | null>(null);
+  const [viewportResetRevision, setViewportResetRevision] = useState(0);
+  const [preferenceSignature, setPreferenceSignature] = useState<string | null>(null);
+  const [preferencesDirty, setPreferencesDirty] = useState(false);
+  const [preferencePersistenceDisabled, setPreferencePersistenceDisabled] =
+    useState(false);
   const [isolatedGroupId, setIsolatedGroupId] = useState<string | null>(null);
   const [layoutFallbackDiagnostic, setLayoutFallbackDiagnostic] =
     useState<HierarchyDiagnostic | null>(null);
-  const hierarchyInitialized = useRef(false);
-  const [view, setView] = useState<"topology" | "nodes">("topology");
+  const [view, setView] = useState<"topology" | "semantic">("topology");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [editing, setEditing] = useState<DisplayNode | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [execution, setExecution] = useState<ExecutionState | null>(null);
+  const reducedMotion = useReducedMotion();
+  const modelRef = useRef<DisplayGraph | null>(null);
+  const hierarchyRef = useRef(hierarchy);
+  const signatureRef = useRef<string | null>(null);
+  const selectionRef = useRef(authoritativeSelection);
+  const presentationSelectionRef = useRef(presentationSelection);
+  const presentationStateRef = useRef<PresentationState>({
+    mode: presentationMode,
+    collapsedGroupIds,
+    isolatedGroupId,
+  });
+  const viewRef = useRef(view);
+  const pendingFocusRef = useRef<string | null>(null);
+  const pendingPresentationFocusRef = useRef<{
+    invoker: HTMLElement | null;
+    groupId: string | null;
+    retainInvoker: boolean;
+  } | null>(null);
+  const lastRefreshRemovedSelectionRef = useRef(false);
+  const editorInvokerRef = useRef<HTMLElement | null>(null);
+  modelRef.current = model;
+  hierarchyRef.current = hierarchy;
+  selectionRef.current = authoritativeSelection;
+  presentationSelectionRef.current = presentationSelection;
+  presentationStateRef.current = {
+    mode: presentationMode,
+    collapsedGroupIds,
+    isolatedGroupId,
+  };
+  viewRef.current = view;
 
-  const loadGraph = useCallback(async () => {
+  const loadGraph = useCallback(async (
+    options: { announceSuccess?: boolean } = {},
+  ) => {
+    lastRefreshRemovedSelectionRef.current = false;
+    let completionNoticeSuppressed = false;
+    const setLoadNotice = (message: string) => {
+      completionNoticeSuppressed = true;
+      setNotice(message);
+    };
+    const focusedSemanticKey =
+      document.activeElement instanceof Element
+        ? document.activeElement
+            .closest<HTMLElement>("[data-semantic-key]")
+            ?.dataset.semanticKey ?? null
+        : null;
     const response = await fetch(`${apiBase}/graph`);
     const envelope = await responseEnvelope(response);
     const next = adaptGraphDocument(envelope.data);
     const nextHierarchy = adaptPresentationGroups(next);
-    const firstHierarchyLoad = !hierarchyInitialized.current;
-    hierarchyInitialized.current = true;
-    setModel(next);
-    setHierarchy(nextHierarchy);
-    setLoadError(null);
-    setCollapsedGroupIds((current) =>
-      reconcileCollapsedGroups(
-        nextHierarchy,
-        firstHierarchyLoad ? null : current,
-      ),
-    );
-    setPresentationMode((current) =>
-      nextHierarchy.status === "valid"
-        ? firstHierarchyLoad
-          ? "grouped"
-          : current
-        : "raw",
-    );
+    const wasLoaded = modelRef.current !== null;
+    let nextSignature: string | null = null;
+    try {
+      nextSignature = await graphSignature(next, nextHierarchy);
+    } catch {
+      setLoadNotice(
+        "View preferences are unavailable because Web Crypto SHA-256 is unavailable; deterministic defaults are active.",
+      );
+    }
+    const graphIdentityChanged =
+      nextSignature === null || signatureRef.current !== nextSignature;
+    signatureRef.current = nextSignature;
+    setPreferenceSignature(nextSignature);
+
     const validGroupIds = new Set(
       nextHierarchy.groups.map((group) => group.id),
     );
+    const defaults = deterministicPresentationDefaults(nextHierarchy);
+    if (graphIdentityChanged) {
+      let restored = false;
+      const storage = browserStorage();
+      if (nextSignature !== null && storage !== null) {
+        const saved = readPresentationPreferences(
+          storage,
+          nextSignature,
+          validGroupIds,
+        );
+        if (saved.status === "valid") {
+          restored = true;
+          setPresentationMode(
+            nextHierarchy.status === "valid" ? saved.value.mode : "raw",
+          );
+          setCollapsedGroupIds(new Set(saved.value.collapsed_group_ids));
+          setSemanticExpandedGroupIds(
+            new Set(saved.value.semantic_expanded_group_ids),
+          );
+          setPreferredViewport(saved.value.viewport);
+        } else if (saved.status === "fallback") {
+          setLoadNotice(saved.message);
+          if (saved.disablePersistence) {
+            setPreferencePersistenceDisabled(true);
+          }
+        }
+      } else if (nextSignature !== null) {
+        setLoadNotice(
+          "View preferences are unavailable; deterministic defaults are active.",
+        );
+        setPreferencePersistenceDisabled(true);
+      }
+      if (!restored) {
+        setPresentationMode(defaults.mode);
+        setCollapsedGroupIds(defaults.collapsedGroupIds);
+        setSemanticExpandedGroupIds(defaults.semanticExpandedGroupIds);
+        setPreferredViewport(null);
+      }
+      setPreferencesDirty(false);
+    } else {
+      setCollapsedGroupIds((current) =>
+        reconcileCollapsedGroups(nextHierarchy, current),
+      );
+      setSemanticExpandedGroupIds((current) =>
+        new Set([...current].filter((id) => validGroupIds.has(id))),
+      );
+      setPresentationMode((current) =>
+        nextHierarchy.status === "valid" ? current : "raw",
+      );
+    }
+
+    const previousSelection = selectionRef.current;
+    const selectionSurvives =
+      previousSelection === null ||
+      (previousSelection.kind === "node"
+        ? next.nodes.some((node) => node.id === previousSelection.id)
+        : next.edges.some((edge) => edge.id === previousSelection.id));
+    const previousPresentationSelection = presentationSelectionRef.current;
+    const nextPresentationState: PresentationState = {
+      mode:
+        nextHierarchy.status === "valid"
+          ? presentationStateRef.current.mode
+          : "raw",
+      collapsedGroupIds: new Set(
+        [...presentationStateRef.current.collapsedGroupIds].filter((id) =>
+          validGroupIds.has(id),
+        ),
+      ),
+      isolatedGroupId:
+        presentationStateRef.current.isolatedGroupId !== null &&
+        validGroupIds.has(presentationStateRef.current.isolatedGroupId)
+          ? presentationStateRef.current.isolatedGroupId
+          : null,
+    };
+    const presentationSelectionSurvives = presentationSelectionSurvivesRefresh(
+      previousPresentationSelection,
+      next,
+      nextHierarchy,
+      nextPresentationState,
+    );
+    if (wasLoaded && previousSelection !== null && !selectionSurvives) {
+      lastRefreshRemovedSelectionRef.current = true;
+      setLoadNotice(
+        removedSelectionNotice(previousSelection),
+      );
+      pendingFocusRef.current = "__heading__";
+    } else if (
+      wasLoaded &&
+      previousPresentationSelection !== null &&
+      !presentationSelectionSurvives
+    ) {
+      lastRefreshRemovedSelectionRef.current = true;
+      setLoadNotice(
+        removedSelectionNotice(previousPresentationSelection),
+      );
+      pendingFocusRef.current = "__heading__";
+    } else if (wasLoaded && focusedSemanticKey) {
+      const [kind, ...identityParts] = focusedSemanticKey.split(":");
+      const identity = identityParts.join(":");
+      const focusSurvives =
+        (kind === "node" || kind === "edit")
+          ? next.nodes.some((node) => node.id === identity)
+          : kind === "edge"
+            ? next.edges.some((edge) => edge.id === identity)
+            : (kind === "group" || kind === "group-disclosure") &&
+              validGroupIds.has(identity);
+      pendingFocusRef.current = focusSurvives
+        ? focusedSemanticKey
+        : "__heading__";
+    }
+    setModel(next);
+    setHierarchy(nextHierarchy);
+    setLoadError(null);
     setIsolatedGroupId((current) =>
       current !== null && validGroupIds.has(current) ? current : null,
     );
     setPresentationSelection((current) =>
-      current?.kind === "group" && validGroupIds.has(current.id)
-        ? current
-        : current?.kind === "bundle"
-          ? current
-          : null,
+      current !== null && presentationSelectionSurvives ? current : null,
     );
     setAuthoritativeSelection((current) => {
       if (current?.kind === "node") {
@@ -1288,7 +1595,62 @@ export default function App() {
       }
       return null;
     });
+    if (!completionNoticeSuppressed && options.announceSuccess !== false) {
+      setNotice(
+        `${wasLoaded ? "Authoritative topology refreshed" : "Authoritative topology loaded"}: ${next.nodes.length} nodes and ${next.edges.length} edges.`,
+      );
+    }
   }, []);
+
+  useEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (!pending || !model) {
+      return;
+    }
+    pendingFocusRef.current = null;
+    requestAnimationFrame(() => {
+      if (pending === "__heading__") {
+        const target =
+          document.getElementById(
+            viewRef.current === "semantic" ? "semantic-heading" : "topology-heading",
+          ) ??
+          document.getElementById("empty-graph-heading") ??
+          document.getElementById("dashboard-view-controls");
+        target?.focus();
+        return;
+      }
+      const target = [...document.querySelectorAll<HTMLElement>("[data-semantic-key]")]
+        .find((element) => element.dataset.semanticKey === pending);
+      target?.focus();
+    });
+  }, [model]);
+
+  useEffect(() => {
+    const pending = pendingPresentationFocusRef.current;
+    if (!pending) {
+      return;
+    }
+    pendingPresentationFocusRef.current = null;
+    requestAnimationFrame(() => {
+      if (pending.retainInvoker && pending.invoker?.isConnected) {
+        pending.invoker.focus();
+        return;
+      }
+      const fallback = pending.groupId === null
+        ? document.querySelector<HTMLElement>('[data-focus-key="all-topology"]')
+        : [...document.querySelectorAll<HTMLElement>("[data-focus-group]")]
+            .find((element) => element.dataset.focusGroup === pending.groupId);
+      if (fallback) {
+        fallback.focus();
+        return;
+      }
+      document
+        .getElementById(
+          viewRef.current === "semantic" ? "semantic-heading" : "topology-heading",
+        )
+        ?.focus();
+    });
+  }, [isolatedGroupId, presentationMode, view]);
 
   const presentationState = useMemo<PresentationState>(
     () => ({
@@ -1364,6 +1726,77 @@ export default function App() {
     }
   }, [effectiveProjection, presentationSelection]);
 
+  useEffect(() => {
+    if (
+      !preferencesDirty ||
+      preferenceSignature === null ||
+      preferencePersistenceDisabled
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const storage = browserStorage();
+      if (storage === null) {
+        setNotice(
+          "View preferences are unavailable; deterministic defaults were restored and browser persistence is disabled for this page.",
+        );
+        const defaults = deterministicPresentationDefaults(hierarchy);
+        setPresentationMode(defaults.mode);
+        setCollapsedGroupIds(defaults.collapsedGroupIds);
+        setSemanticExpandedGroupIds(defaults.semanticExpandedGroupIds);
+        setPreferredViewport(null);
+        setIsolatedGroupId(null);
+        setPresentationSelection(null);
+        setViewportResetRevision((revision) => revision + 1);
+        setPreferencePersistenceDisabled(true);
+        setPreferencesDirty(false);
+        return;
+      }
+      const knownGroups = new Set(hierarchy.groups.map((group) => group.id));
+      const record: PresentationPreferences = {
+        schema: 1,
+        graph_signature: preferenceSignature,
+        mode:
+          hierarchy.status === "valid" ? presentationMode : "raw",
+        collapsed_group_ids: [...collapsedGroupIds]
+          .filter((id) => knownGroups.has(id))
+          .sort(),
+        semantic_expanded_group_ids: [...semanticExpandedGroupIds]
+          .filter((id) => knownGroups.has(id))
+          .sort(),
+        viewport: preferredViewport ?? { x: 0, y: 0, zoom: 1 },
+      };
+      const failure = writePresentationPreferences(storage, record);
+      if (failure) {
+        setNotice(
+          `${failure} Deterministic defaults were restored and browser persistence is disabled for this page.`,
+        );
+        void removePresentationPreferences(storage);
+        const defaults = deterministicPresentationDefaults(hierarchy);
+        setPresentationMode(defaults.mode);
+        setCollapsedGroupIds(defaults.collapsedGroupIds);
+        setSemanticExpandedGroupIds(defaults.semanticExpandedGroupIds);
+        setPreferredViewport(null);
+        setIsolatedGroupId(null);
+        setPresentationSelection(null);
+        setViewportResetRevision((revision) => revision + 1);
+        setPreferencePersistenceDisabled(true);
+      }
+      setPreferencesDirty(false);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    collapsedGroupIds,
+    hierarchy.groups,
+    hierarchy.status,
+    preferenceSignature,
+    preferencePersistenceDisabled,
+    preferencesDirty,
+    preferredViewport,
+    presentationMode,
+    semanticExpandedGroupIds,
+  ]);
+
   const toggleGroup = useCallback((groupId: string) => {
     setCollapsedGroupIds((current) => {
       const next = new Set(current);
@@ -1374,17 +1807,75 @@ export default function App() {
       }
       return next;
     });
+    setPreferencesDirty(true);
   }, []);
 
   const isolateGroup = useCallback((groupId: string) => {
+    const invoker =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    pendingPresentationFocusRef.current = {
+      invoker,
+      groupId,
+      retainInvoker: invoker?.closest("#semantic-topology-region") !== null,
+    };
     setPresentationMode("grouped");
     setIsolatedGroupId(groupId);
     setPresentationSelection({ kind: "group", id: groupId });
+    setPreferencesDirty(true);
   }, []);
 
   const clearSelection = useCallback(() => {
     setAuthoritativeSelection(null);
     setPresentationSelection(null);
+  }, []);
+
+  const openEditor = useCallback((node: DisplayNode, invoker?: HTMLElement) => {
+    editorInvokerRef.current =
+      invoker ??
+      (document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null);
+    setEditing(node);
+  }, []);
+
+  const restoreEditorFocus = useCallback(() => {
+    const invoker = editorInvokerRef.current;
+    editorInvokerRef.current = null;
+    requestAnimationFrame(() => {
+      if (invoker?.isConnected) {
+        invoker.focus();
+      } else {
+        document.getElementById("semantic-heading")?.focus();
+      }
+    });
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditing(null);
+    restoreEditorFocus();
+  }, [restoreEditorFocus]);
+
+  const resetViewPreferences = useCallback(() => {
+    const storage = browserStorage();
+    const failure =
+      storage === null
+        ? "Saved view preferences are unavailable; deterministic defaults are active for this page."
+        : removePresentationPreferences(storage);
+    const defaults = deterministicPresentationDefaults(hierarchyRef.current);
+    setPresentationMode(defaults.mode);
+    setCollapsedGroupIds(defaults.collapsedGroupIds);
+    setSemanticExpandedGroupIds(defaults.semanticExpandedGroupIds);
+    setPreferredViewport(null);
+    setViewportResetRevision((revision) => revision + 1);
+    setIsolatedGroupId(null);
+    setPresentationSelection(null);
+    setPreferencesDirty(false);
+    setNotice(
+      failure ??
+        `View preferences reset to deterministic defaults; ${PRESENTATION_PREFERENCE_KEY} was removed from local storage.`,
+    );
   }, []);
 
   const updateExecution = useCallback(async () => {
@@ -1436,18 +1927,24 @@ export default function App() {
       },
     );
     await responseEnvelope(response);
-    await Promise.all([loadGraph(), updateExecution()]);
+    await Promise.all([loadGraph({ announceSuccess: false }), updateExecution()]);
     setEditing(null);
-    setNotice(`Parameters for ${node.id} updated in memory`);
+    restoreEditorFocus();
+    if (!lastRefreshRemovedSelectionRef.current) {
+      setNotice(`Parameters for ${node.id} updated in memory`);
+    }
   };
 
   return (
     <div className="dashboard">
+      <a className="skip-link" href="#dashboard-view-controls">
+        Skip to dashboard view controls
+      </a>
       <header className="management-header">
         <h1>GraphX Management Dashboard</h1>
         <p>Authoritative topology inspection, parameter editing, and execution control</p>
       </header>
-      <main>
+      <main id="dashboard-main">
         <section className="execution-panel" aria-labelledby="execution-heading">
           <div>
             <h2 id="execution-heading">Execution control</h2>
@@ -1482,9 +1979,16 @@ export default function App() {
           </div>
         </section>
 
-        {notice && <div className="notice" role="status">{notice}</div>}
+        <div className="notice-region" role="status" aria-live="polite" aria-atomic="true">
+          {notice && <div className="notice">{notice}</div>}
+        </div>
 
-        <nav className="view-tabs" aria-label="Dashboard views">
+        <nav
+          id="dashboard-view-controls"
+          className="view-tabs"
+          aria-label="Dashboard views and local preferences"
+          tabIndex={-1}
+        >
           <button
             type="button"
             aria-pressed={view === "topology"}
@@ -1494,10 +1998,18 @@ export default function App() {
           </button>
           <button
             type="button"
-            aria-pressed={view === "nodes"}
-            onClick={() => setView("nodes")}
+            aria-pressed={view === "semantic"}
+            onClick={() => setView("semantic")}
           >
-            Nodes &amp; parameters
+            Semantic topology
+          </button>
+          <button
+            type="button"
+            data-storage-key={PRESENTATION_PREFERENCE_KEY}
+            onClick={resetViewPreferences}
+            aria-label="Reset view preferences stored only in this browser"
+          >
+            Reset view preferences
           </button>
         </nav>
 
@@ -1507,11 +2019,19 @@ export default function App() {
             <p>{loadError}</p>
             <button
               type="button"
-              onClick={() =>
-                void loadGraph().catch((error: unknown) =>
-                  setLoadError(error instanceof Error ? error.message : String(error)),
-                )
-              }
+              onClick={(event) => {
+                const invoker = event.currentTarget;
+                pendingFocusRef.current = "__heading__";
+                void loadGraph().catch((error: unknown) => {
+                  pendingFocusRef.current = null;
+                  setLoadError(error instanceof Error ? error.message : String(error));
+                  requestAnimationFrame(() => {
+                    if (invoker.isConnected) {
+                      invoker.focus();
+                    }
+                  });
+                });
+              }}
             >
               Retry graph fetch
             </button>
@@ -1528,18 +2048,17 @@ export default function App() {
               Authoritative inventory: {model.rawNodes.length} nodes,{" "}
               {model.rawEdges.length} edges
             </div>
-            {projection && model.diagnostics.length === 0 && (
+            {effectiveProjection && model.diagnostics.length === 0 && (
               <HierarchyDiagnostics
                 model={model}
                 hierarchy={hierarchy}
-                projection={projection}
+                projection={effectiveProjection}
               />
             )}
-            {model.diagnostics.length > 0 ? (
-              <Diagnostics model={model} />
-            ) : model.nodes.length === 0 ? (
+            {model.diagnostics.length > 0 && <Diagnostics model={model} />}
+            {model.nodes.length === 0 ? (
               <section className="empty-state">
-                <h2>Empty graph</h2>
+                <h2 id="empty-graph-heading" tabIndex={-1}>Empty graph</h2>
                 <p>The authoritative graph contains no nodes or edges.</p>
               </section>
             ) : (
@@ -1547,81 +2066,114 @@ export default function App() {
                 <section className="primary-view">
                   {view === "topology" ? (
                     <>
-                      <h2 id="topology-heading">Read-only topology</h2>
+                      <h2 id="topology-heading" tabIndex={-1}>Read-only topology</h2>
                       <p className="structural-note">
                         Layout and navigation are presentation-only. Graph structure
                         cannot be edited here.
                       </p>
-                      <HierarchyNavigation
-                        hierarchy={hierarchy}
-                        state={effectivePresentationState}
-                        selectedGroupId={
-                          presentationSelection?.kind === "group"
-                            ? presentationSelection.id
-                            : null
-                        }
-                        projection={effectiveProjection!}
-                        onMode={(mode) => {
-                          setPresentationMode(mode);
-                          setPresentationSelection(null);
-                        }}
-                        onNavigate={(groupId) => {
-                          setPresentationMode("grouped");
-                          setIsolatedGroupId(groupId);
-                          setPresentationSelection(
-                            groupId === null
-                              ? null
-                              : { kind: "group", id: groupId },
-                          );
-                        }}
-                      />
-                      <TopologyCanvas
-                        model={model}
-                        hierarchy={hierarchy}
-                        projection={effectiveProjection!}
-                        authoritativeSelection={authoritativeSelection}
-                        presentationSelection={presentationSelection}
-                        onAuthoritativeSelect={setAuthoritativeSelection}
-                        onPresentationSelect={setPresentationSelection}
-                        onToggleGroup={toggleGroup}
-                        onIsolateGroup={isolateGroup}
-                        onClearSelection={clearSelection}
-                        onLayoutFallback={handleLayoutFallback}
-                      />
+                      {model.diagnostics.length > 0 ? (
+                        <p>
+                          The canvas is withheld for malformed structure. Use Semantic topology
+                          and the exact raw diagnostic above; no object was repaired or dropped silently.
+                        </p>
+                      ) : (
+                        <>
+                          <HierarchyNavigation
+                            hierarchy={hierarchy}
+                            state={effectivePresentationState}
+                            selectedGroupId={
+                              presentationSelection?.kind === "group"
+                                ? presentationSelection.id
+                                : null
+                            }
+                            projection={effectiveProjection!}
+                            onMode={(mode) => {
+                              setPresentationMode(mode);
+                              setPresentationSelection(null);
+                              setPreferencesDirty(true);
+                            }}
+                            onNavigate={(groupId, invoker) => {
+                              pendingPresentationFocusRef.current = {
+                                invoker,
+                                groupId,
+                                retainInvoker: true,
+                              };
+                              setPresentationMode("grouped");
+                              setIsolatedGroupId(groupId);
+                              setPresentationSelection(
+                                groupId === null
+                                  ? null
+                                  : { kind: "group", id: groupId },
+                              );
+                              setPreferencesDirty(true);
+                            }}
+                          />
+                          <TopologyCanvas
+                            model={model}
+                            hierarchy={hierarchy}
+                            projection={effectiveProjection!}
+                            authoritativeSelection={authoritativeSelection}
+                            presentationSelection={presentationSelection}
+                            onAuthoritativeSelect={setAuthoritativeSelection}
+                            onPresentationSelect={setPresentationSelection}
+                            onToggleGroup={toggleGroup}
+                            onIsolateGroup={isolateGroup}
+                            onClearSelection={clearSelection}
+                            onLayoutFallback={handleLayoutFallback}
+                            preferredViewport={preferredViewport}
+                            viewportResetRevision={viewportResetRevision}
+                            reducedMotion={reducedMotion}
+                            onViewportChange={(viewport) => {
+                              setPreferredViewport(viewport);
+                              setPreferencesDirty(true);
+                            }}
+                          />
+                        </>
+                      )}
                     </>
                   ) : (
-                    <>
-                      <h2>Nodes &amp; parameters</h2>
-                      <div className="search-filter">
-                        <label>
-                          Search node ID
-                          <input
-                            type="search"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                          />
-                        </label>
-                        <label>
-                          Filter node type
-                          <input
-                            type="search"
-                            value={typeFilter}
-                            onChange={(event) => setTypeFilter(event.target.value)}
-                          />
-                        </label>
-                      </div>
-                      <NodeTable
-                        nodes={model.nodes}
-                        selection={authoritativeSelection}
-                        search={search}
-                        typeFilter={typeFilter}
-                        onSelect={(selection) => {
-                          setPresentationSelection(null);
-                          setAuthoritativeSelection(selection);
-                        }}
-                        onEdit={setEditing}
-                      />
-                    </>
+                    <SemanticTopology
+                      model={model}
+                      hierarchy={hierarchy}
+                      projection={effectiveProjection!}
+                      authoritativeSelection={authoritativeSelection}
+                      presentationSelection={presentationSelection}
+                      search={search}
+                      typeFilter={typeFilter}
+                      expandedGroupIds={semanticExpandedGroupIds}
+                      collapsedGroupIds={collapsedGroupIds}
+                      canvasFallbackActive={
+                        layoutFallbackDiagnostic !== null &&
+                        presentationMode === "grouped"
+                      }
+                      onSearch={setSearch}
+                      onTypeFilter={setTypeFilter}
+                      onExpandedGroup={(groupId, expanded) => {
+                        setSemanticExpandedGroupIds((current) => {
+                          if (current.has(groupId) === expanded) {
+                            return current;
+                          }
+                          const next = new Set(current);
+                          if (expanded) {
+                            next.add(groupId);
+                          } else {
+                            next.delete(groupId);
+                          }
+                          return next;
+                        });
+                        setPreferencesDirty(true);
+                      }}
+                      onAuthoritativeSelect={setAuthoritativeSelection}
+                      onPresentationSelect={setPresentationSelection}
+                      onToggleCanvasGroup={toggleGroup}
+                      onIsolateGroup={isolateGroup}
+                      onEdit={(nodeId, invoker) => {
+                        const node = model.nodes.find((candidate) => candidate.id === nodeId);
+                        if (node) {
+                          openEditor(node, invoker);
+                        }
+                      }}
+                    />
                   )}
                 </section>
                 <Inspector
@@ -1630,10 +2182,11 @@ export default function App() {
                   projection={effectiveProjection!}
                   authoritativeSelection={authoritativeSelection}
                   presentationSelection={presentationSelection}
-                  onEdit={setEditing}
+                  onEdit={openEditor}
                   onSelectMemberEdge={(edgeId) => {
                     setPresentationSelection(null);
                     setAuthoritativeSelection({ kind: "edge", id: edgeId });
+                    focusPersistentInspectorHeading();
                   }}
                   onToggleGroup={toggleGroup}
                   onIsolateGroup={isolateGroup}
@@ -1649,7 +2202,7 @@ export default function App() {
       {editing && (
         <ParameterEditor
           node={editing}
-          onClose={() => setEditing(null)}
+          onClose={closeEditor}
           onSave={(config) => saveNodeConfig(editing, config)}
         />
       )}
@@ -1669,4 +2222,7 @@ export {
   NodeTable,
   ParameterEditor,
   TopologyCanvas,
+  focusPersistentInspectorHeading,
+  presentationSelectionSurvivesRefresh,
+  removedSelectionNotice,
 };

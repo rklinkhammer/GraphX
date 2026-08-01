@@ -343,7 +343,7 @@ async function inspectFirstBundle(page, expectedMembers) {
     `bundle member count was not ${expectedMembers}: ${inspection}`,
   );
   const memberButtons = await page.$$(
-    '[data-testid="bundle-inspector"] button[aria-label^="Inspect authoritative edge "]',
+    '[data-testid="bundle-inspector"] button[aria-label^="Inspect exact edge: "]',
   );
   requireCondition(
     memberButtons.length === expectedMembers,
@@ -385,8 +385,8 @@ async function inspectFirstBundle(page, expectedMembers) {
 }
 
 async function editNode(page, nodeId, marker) {
-  await activateButton(page, "Nodes & parameters");
-  await page.waitForSelector("#nodesTable", { timeout: 10_000 });
+  await activateButton(page, "Semantic topology");
+  await page.waitForSelector("#semantic-topology-region", { timeout: 10_000 });
   await clickButton(page, nodeId);
   await clickButton(page, "Edit node parameters");
   await page.waitForSelector("#node-config", { timeout: 10_000 });

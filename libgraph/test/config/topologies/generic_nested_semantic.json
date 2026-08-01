@@ -1,0 +1,60 @@
+{
+  "name": "GenericNestedSemantic",
+  "description": "Domain-neutral four-stage nested semantic topology fixture.",
+  "num_threads": 2,
+  "presentation": {
+    "groups": [
+      {
+        "id": "pipeline",
+        "label": "Generic pipeline",
+        "members": ["source", "sink"],
+        "layout": "layered",
+        "collapsed_by_default": false
+      },
+      {
+        "id": "processing",
+        "label": "Nested processing",
+        "members": ["transform_a", "transform_b"],
+        "parent": "pipeline",
+        "layout": "layered",
+        "collapsed_by_default": true
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "source",
+      "type": "SourceTestNode",
+      "name": "source",
+      "node_config": {"message_count": 10}
+    },
+    {"id": "transform_a", "type": "InteriorTestNode", "name": "transform_a"},
+    {"id": "transform_b", "type": "InteriorTestNode", "name": "transform_b"},
+    {
+      "id": "sink",
+      "type": "SinkTestNode",
+      "name": "sink",
+      "node_config": {"expected_message_count": 10}
+    }
+  ],
+  "edges": [
+    {
+      "source_node_id": "source",
+      "source_port_name": "Data",
+      "target_node_id": "transform_a",
+      "target_port": 0
+    },
+    {
+      "source_node_id": "transform_a",
+      "source_port": 0,
+      "target_node_id": "transform_b",
+      "target_port_name": "Input"
+    },
+    {
+      "source_node_id": "transform_b",
+      "source_port_name": "Output",
+      "target_node_id": "sink",
+      "target_port": 0
+    }
+  ]
+}

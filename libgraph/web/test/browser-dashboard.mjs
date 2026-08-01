@@ -478,7 +478,7 @@ try {
 
     const nodesTabFocused = await page.evaluate(() => {
       const button = [...document.querySelectorAll("button")].find(
-        (candidate) => candidate.textContent?.trim() === "Nodes & parameters",
+        (candidate) => candidate.textContent?.trim() === "Semantic topology",
       );
       if (!(button instanceof HTMLButtonElement)) {
         return false;
@@ -488,9 +488,9 @@ try {
     });
     requireCondition(nodesTabFocused, "view switch did not receive keyboard focus");
     await page.keyboard.press("Enter");
-    await page.waitForSelector("#nodesTable");
+    await page.waitForSelector("#semantic-topology-region");
     const tableSelected = await page.evaluate((id) => {
-      const button = [...document.querySelectorAll(".table-selection")].find(
+      const button = [...document.querySelectorAll(".semantic-selection")].find(
         (candidate) => candidate.textContent?.trim() === id,
       );
       if (!(button instanceof HTMLButtonElement)) {
@@ -502,7 +502,7 @@ try {
     requireCondition(tableSelected, "table node was unavailable for selection");
     await page.waitForFunction(
       (id) =>
-        [...document.querySelectorAll(".table-selection")].some(
+        [...document.querySelectorAll(".semantic-selection")].some(
           (candidate) =>
             candidate.textContent?.trim() === id &&
             candidate.getAttribute("aria-pressed") === "true",

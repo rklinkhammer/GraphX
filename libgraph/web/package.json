@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:browser": "node test/browser-dashboard.mjs",
     "test:browser:phase2": "node test/browser-hierarchy.mjs",
+    "test:browser:phase3": "node test/browser-phase3.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

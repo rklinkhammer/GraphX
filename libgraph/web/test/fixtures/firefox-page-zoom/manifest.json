@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "name": "GraphX Phase 3 Firefox page zoom oracle",
+  "version": "1.0",
+  "permissions": ["tabs", "http://127.0.0.1/*"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "graphx-phase3-page-zoom@graphx.test"
+    }
+  }
+}

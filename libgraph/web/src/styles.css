@@ -1,4 +1,14 @@
 :root {
+  --control-border-color: #71809b;
+  --focus-ring-color: #9b4d00;
+  --minimap-border-color: #71809b;
+  --notice-boundary-color: #216e42;
+  --selected-boundary-color: #9b4d00;
+  --semantic-border-color: #71809b;
+  --skip-border-color: #f6bf55;
+  --status-secondary-text-color: #58647a;
+  --warning-boundary-color: #b24a56;
+  --warning-text-color: #5f151d;
   color: #172033;
   background: #e9edf5;
   font-family:
@@ -20,6 +30,23 @@ body {
     #e9edf5;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.7rem 1rem;
+  color: #fff;
+  background: #172033;
+  border: 3px solid var(--skip-border-color);
+  border-radius: 0.35rem;
+  transform: translateY(-160%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 button,
 input,
 textarea {
@@ -29,7 +56,7 @@ textarea {
 button {
   min-height: 2.5rem;
   padding: 0.55rem 0.9rem;
-  border: 1px solid #aeb8cb;
+  border: 1px solid var(--control-border-color);
   border-radius: 0.45rem;
   color: #172033;
   background: #fff;
@@ -45,7 +72,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid #e58100;
+  outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
@@ -139,7 +166,7 @@ main {
 
 .revision-summary {
   margin: 0.55rem 0 0;
-  color: #58647a;
+  color: var(--status-secondary-text-color);
   font-size: 0.88rem;
 }
 
@@ -157,8 +184,12 @@ main {
 .notice {
   margin: 1rem 0 0;
   padding: 0.8rem 1rem;
-  border-left: 0.3rem solid #216e42;
+  border-left: 0.3rem solid var(--notice-boundary-color);
   background: #e7f6ed;
+}
+
+.notice-region:empty {
+  display: none;
 }
 
 .view-tabs {
@@ -221,7 +252,7 @@ main {
   gap: 0.65rem;
   margin-bottom: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid #c8d0df;
+  border: 1px solid var(--semantic-border-color);
   border-radius: 0.5rem;
   background: #f7f8fc;
 }
@@ -291,7 +322,7 @@ main {
 }
 
 .graph-node-card.selected {
-  border-color: #d76b00;
+  border-color: var(--selected-boundary-color);
   box-shadow: 0 0 0 3px rgb(229 129 0 / 30%);
 }
 
@@ -315,12 +346,12 @@ main {
 }
 
 .graph-group-card.selected {
-  border-color: #d76b00;
+  border-color: var(--selected-boundary-color);
   box-shadow: 0 0 0 3px rgb(229 129 0 / 30%);
 }
 
 .graph-group-card.contains-selection {
-  outline: 4px solid #e58100;
+  outline: 4px solid var(--focus-ring-color);
   outline-offset: 3px;
 }
 
@@ -377,7 +408,7 @@ main {
 }
 
 .bundle-edge.selected path {
-  stroke: #d76b00;
+  stroke: var(--selected-boundary-color);
   stroke-width: 4px;
 }
 
@@ -392,7 +423,7 @@ main {
 }
 
 .minimap-keyboard-control:focus {
-  outline: 4px solid #e58100;
+  outline: 4px solid var(--focus-ring-color);
   outline-offset: 4px;
 }
 
@@ -401,7 +432,7 @@ main {
   width: 100%;
   height: 100%;
   margin: 0;
-  border: 1px solid #8e9bb2;
+  border: 1px solid var(--minimap-border-color);
   border-radius: 0.35rem;
   background: rgb(255 255 255 / 90%);
 }
@@ -559,7 +590,7 @@ textarea {
   width: 100%;
   padding: 0.65rem;
   color: #172033;
-  border: 1px solid #aeb8cb;
+  border: 1px solid var(--control-border-color);
   border-radius: 0.4rem;
   background: #fff;
 }
@@ -590,6 +621,151 @@ th {
   background: #fff0d9;
 }
 
+.semantic-topology {
+  min-width: 0;
+}
+
+.semantic-topology > h2 {
+  margin-top: 0;
+}
+
+.semantic-counts {
+  display: block;
+  margin: 0.8rem 0;
+  font-weight: 700;
+}
+
+.semantic-hierarchy-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.65rem 0;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+
+.semantic-root-list {
+  padding-left: 0;
+}
+
+.semantic-group-item > details {
+  padding: 0.7rem;
+  border: 1px solid var(--semantic-border-color);
+  border-radius: 0.5rem;
+  background: #f7f8fc;
+}
+
+.semantic-group-summary,
+.semantic-ungrouped > h4 {
+  min-height: 2rem;
+  padding: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.semantic-group-summary:focus-visible,
+.semantic-edge-table-region:focus-visible,
+#dashboard-view-controls:focus-visible,
+#semantic-heading:focus-visible,
+#topology-heading:focus-visible {
+  outline: 3px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.semantic-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.6rem 0;
+}
+
+.semantic-state-text {
+  color: #4d5870;
+  font-weight: 650;
+}
+
+.semantic-node-record {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--semantic-border-color);
+  border-left: 0.35rem solid #71809b;
+  border-radius: 0.45rem;
+  background: #fff;
+}
+
+.semantic-node-record.selected-record {
+  border-left-style: double;
+  border-left-width: 0.6rem;
+  border-left-color: var(--selected-boundary-color);
+  background: #fff0d9;
+}
+
+.semantic-record-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.semantic-selection {
+  max-width: 100%;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.4rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: left;
+}
+
+.semantic-record-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.2rem 1rem;
+}
+
+.semantic-record-details > div {
+  min-width: 0;
+}
+
+.semantic-edit {
+  margin-top: 0.65rem;
+}
+
+.semantic-warnings {
+  margin: 0.6rem 0;
+  padding: 0.65rem 0.65rem 0.65rem 1.75rem;
+  color: var(--warning-text-color);
+  border: 2px solid var(--warning-boundary-color);
+  border-radius: 0.35rem;
+  background: #fff4f5;
+}
+
+.semantic-warning-text {
+  padding: 0.65rem;
+  color: var(--warning-text-color);
+  border-left: 0.3rem solid var(--warning-boundary-color);
+  background: #fff4f5;
+}
+
+.semantic-edge-table-region {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--semantic-border-color);
+  border-radius: 0.35rem;
+}
+
+.semantic-edge-table {
+  min-width: 58rem;
+}
+
+.semantic-edge-table th,
+.semantic-edge-table td {
+  max-width: 20rem;
+  overflow-wrap: anywhere;
+}
+
+.semantic-edge-table .semantic-selection {
+  display: block;
+  width: 100%;
+}
+
 .table-selection {
   min-height: auto;
   padding: 0.2rem;
@@ -610,8 +786,8 @@ th {
 }
 
 .diagnostic-panel {
-  color: #5f151d;
-  border-color: #d5979d;
+  color: var(--warning-text-color);
+  border-color: var(--warning-boundary-color);
   background: #fff4f5;
 }
 
@@ -691,6 +867,66 @@ footer {
 
   .topology-canvas {
     min-height: 380px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    min-width: 0;
+  }
+
+  main,
+  .management-header,
+  .primary-view,
+  .inspector,
+  .execution-panel {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .view-tabs,
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .view-tabs button,
+  .execution-actions button,
+  .modal-actions button {
+    flex: 1 1 8rem;
+  }
+
+  .semantic-hierarchy-list {
+    padding-left: 0.35rem;
+  }
+
+  .semantic-group-item > details,
+  .semantic-node-record {
+    padding: 0.5rem;
+  }
+
+  .topology-canvas {
+    min-height: 320px;
+  }
+
+  .minimap-keyboard-control {
+    width: 132px;
+    height: 100px;
+  }
+}
+
+@media (forced-colors: active) {
+  .selected-row,
+  .semantic-node-record.selected-record,
+  .notice,
+  .diagnostic-panel,
+  .semantic-warnings {
+    border: 3px double CanvasText;
+  }
+
+  .graph-node-card.selected,
+  .graph-group-card.selected,
+  .graph-group-card.contains-selection {
+    outline: 4px double Highlight;
   }
 }
 
