@@ -110,16 +110,6 @@ function NodeCard({ data, selected }: NodeProps<Node<NodeCardData>>) {
       className={`graph-node-card${selected ? " selected" : ""}`}
       data-testid="graph-node-card"
       aria-label={`Node ${node.id}, type ${node.type}`}
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.currentTarget !== event.target) {
-          return;
-        }
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          data.onSelect?.({ kind: "node", id: node.id });
-        }
-      }}
     >
       <header>
         <strong>{node.id}</strong>
@@ -128,7 +118,11 @@ function NodeCard({ data, selected }: NodeProps<Node<NodeCardData>>) {
           type="button"
           className="node-keyboard-select nodrag nopan"
           aria-label={`Select node ${node.id}`}
-          onClick={() => data.onSelect?.({ kind: "node", id: node.id })}
+          aria-pressed={selected}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onSelect?.({ kind: "node", id: node.id });
+          }}
         >
           Select
         </button>
@@ -209,13 +203,6 @@ function GroupCard({ data, selected }: NodeProps<Node<GroupCardData>>) {
       aria-label={`Group ${group.label}, ${group.memberNodeIds.length} authoritative members, ${
         data.collapsed ? "collapsed" : "expanded"
       }${data.containsSelection ? ", contains authoritative selection" : ""}`}
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          data.onSelect?.({ kind: "group", id: group.id });
-        }
-      }}
     >
       <header className="group-card-header">
         <div>
@@ -252,6 +239,7 @@ function GroupCard({ data, selected }: NodeProps<Node<GroupCardData>>) {
           <button
             type="button"
             aria-label={`Inspect group ${group.id}`}
+            aria-pressed={selected}
             onKeyDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -288,6 +276,29 @@ function GroupCard({ data, selected }: NodeProps<Node<GroupCardData>>) {
 }
 
 const nodeTypes = { graphNode: NodeCard, groupNode: GroupCard };
+
+function synchronizeCanvasEdgeSelection(
+  edge: Edge,
+  authoritativeSelection: AuthoritativeSelection,
+  presentationSelection: PresentationSelection,
+): Edge {
+  const selected =
+    (edge.data?.edge !== undefined &&
+      authoritativeSelection?.kind === "edge" &&
+      authoritativeSelection.id === edge.id) ||
+    (edge.data?.bundle !== undefined &&
+      presentationSelection?.kind === "bundle" &&
+      presentationSelection.id === edge.id);
+  return {
+    ...edge,
+    selected,
+    ariaRole: "button",
+    domAttributes: {
+      ...edge.domAttributes,
+      "aria-pressed": selected,
+    },
+  };
+}
 
 interface TopologyCanvasProps {
   model: DisplayGraph;
@@ -333,6 +344,11 @@ function TopologyCanvasBody({
   const authoritativeSelectionRef = useRef(authoritativeSelection);
   const presentationSelectionRef = useRef(presentationSelection);
   const preferredViewportRef = useRef(preferredViewport);
+  const edgeFocusEpochRef = useRef(0);
+  const pendingEdgeFocusRef = useRef<{
+    edgeId: string;
+    epoch: number;
+  } | null>(null);
   authoritativeSelectionRef.current = authoritativeSelection;
   presentationSelectionRef.current = presentationSelection;
   preferredViewportRef.current = preferredViewport;
@@ -347,6 +363,33 @@ function TopologyCanvasBody({
       : null;
   const containedSelection =
     projection.mode === "grouped" ? authoritativeSelection : null;
+  const selectAuthoritative = useCallback(
+    (selection: AuthoritativeSelection) => {
+      onPresentationSelect(null);
+      onAuthoritativeSelect(selection);
+    },
+    [onAuthoritativeSelect, onPresentationSelect],
+  );
+  const cancelPendingEdgeFocus = useCallback(() => {
+    edgeFocusEpochRef.current += 1;
+    pendingEdgeFocusRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const handleFocusIn = (event: FocusEvent) => {
+      const pending = pendingEdgeFocusRef.current;
+      const target = event.target;
+      if (pending === null || !(target instanceof Element)) return;
+      const focusedEdgeId = target
+        .closest(".topology-canvas .react-flow__edge")
+        ?.getAttribute("data-id");
+      if (focusedEdgeId !== pending.edgeId) {
+        cancelPendingEdgeFocus();
+      }
+    };
+    document.addEventListener("focusin", handleFocusIn);
+    return () => document.removeEventListener("focusin", handleFocusIn);
+  }, [cancelPendingEdgeFocus]);
 
   useEffect(() => {
     let current = true;
@@ -375,7 +418,7 @@ function TopologyCanvasBody({
                   selected:
                     currentAuthoritativeSelection?.kind === "node" &&
                     currentAuthoritativeSelection.id === node.id,
-                  onSelect: onAuthoritativeSelect,
+                  onSelect: selectAuthoritative,
                 }
               : {
                   ...node.data,
@@ -397,16 +440,13 @@ function TopologyCanvasBody({
         })),
       );
       setEdges(
-        layout.edges.map((edge) => ({
-          ...edge,
-          selected:
-            (edge.data?.edge !== undefined &&
-              currentAuthoritativeSelection?.kind === "edge" &&
-              currentAuthoritativeSelection.id === edge.id) ||
-            (edge.data?.bundle !== undefined &&
-              currentPresentationSelection?.kind === "bundle" &&
-              currentPresentationSelection.id === edge.id),
-        })),
+        layout.edges.map((edge) =>
+          synchronizeCanvasEdgeSelection(
+            edge,
+            currentAuthoritativeSelection,
+            currentPresentationSelection,
+          ),
+        ),
       );
       setLayoutDiagnostic(
         layout.diagnostic ? hierarchyDiagnosticText(layout.diagnostic) : null,
@@ -427,10 +467,10 @@ function TopologyCanvasBody({
     hierarchy,
     layoutRevision,
     model,
-    onAuthoritativeSelect,
     onIsolateGroup,
     onLayoutFallback,
     onPresentationSelect,
+    selectAuthoritative,
     onToggleGroup,
     projection,
     setViewport,
@@ -462,7 +502,40 @@ function TopologyCanvasBody({
             selectedGroupId === node.id),
       })),
     );
-  }, [containedSelection, selectedGroupId, selectedNodeId]);
+    setEdges((current) =>
+      current.map((edge) =>
+        synchronizeCanvasEdgeSelection(
+          edge,
+          authoritativeSelection,
+          presentationSelection,
+        ),
+      ),
+    );
+  }, [
+    authoritativeSelection,
+    containedSelection,
+    presentationSelection,
+    selectedGroupId,
+    selectedNodeId,
+  ]);
+
+  useEffect(() => {
+    const pending = pendingEdgeFocusRef.current;
+    if (pending === null) return;
+    requestAnimationFrame(() => {
+      if (pending.epoch !== edgeFocusEpochRef.current) return;
+      requestAnimationFrame(() => {
+        if (pending.epoch !== edgeFocusEpochRef.current) return;
+        const currentEdge = [...document.querySelectorAll<SVGElement>(
+          ".topology-canvas .react-flow__edge",
+        )].find((candidate) => candidate.getAttribute("data-id") === pending.edgeId);
+        currentEdge?.focus();
+        if (pending.epoch === edgeFocusEpochRef.current) {
+          pendingEdgeFocusRef.current = null;
+        }
+      });
+    });
+  }, [authoritativeSelection, presentationSelection]);
 
   const handleMinimapKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -534,15 +607,18 @@ function TopologyCanvasBody({
       }
       event.preventDefault();
       event.stopPropagation();
+      pendingEdgeFocusRef.current = {
+        edgeId,
+        epoch: ++edgeFocusEpochRef.current,
+      };
       const edge = edges.find((candidate) => candidate.id === edgeId);
       if (edge?.data?.bundle !== undefined) {
         onPresentationSelect({ kind: "bundle", id: edgeId });
       } else {
-        onPresentationSelect(null);
-        onAuthoritativeSelect({ kind: "edge", id: edgeId });
+        selectAuthoritative({ kind: "edge", id: edgeId });
       }
     },
-    [edges, onAuthoritativeSelect, onPresentationSelect],
+    [edges, onPresentationSelect, selectAuthoritative],
   );
 
   return (
@@ -579,7 +655,10 @@ function TopologyCanvasBody({
         </button>
         <button
           type="button"
-          onClick={onClearSelection}
+          onClick={() => {
+            cancelPendingEdgeFocus();
+            onClearSelection();
+          }}
           disabled={
             authoritativeSelection === null && presentationSelection === null
           }
@@ -621,7 +700,7 @@ function TopologyCanvasBody({
           edgesReconnectable={false}
           elementsSelectable={false}
           edgesFocusable
-          nodesFocusable
+          nodesFocusable={false}
           panOnDrag
           zoomOnScroll
           zoomOnPinch
@@ -629,29 +708,32 @@ function TopologyCanvasBody({
           deleteKeyCode={null}
           ariaLabelConfig={{
             "node.a11yDescription.default":
-              "Press Enter or Space to select this read-only node.",
+              "Read-only topology node. Use its named controls to select or inspect it.",
             "node.a11yDescription.keyboardDisabled":
               "This node is structurally read-only.",
             "edge.a11yDescription.default":
               "Press Enter or Space to select this read-only edge.",
           }}
           onNodeClick={(_, node) => {
+            cancelPendingEdgeFocus();
             if (node.data.kind === "group") {
               onPresentationSelect({ kind: "group", id: node.id });
             } else {
-              onPresentationSelect(null);
-              onAuthoritativeSelect({ kind: "node", id: node.id });
+              selectAuthoritative({ kind: "node", id: node.id });
             }
           }}
           onEdgeClick={(_, edge) => {
+            cancelPendingEdgeFocus();
             if (edge.data?.bundle !== undefined) {
               onPresentationSelect({ kind: "bundle", id: edge.id });
             } else {
-              onPresentationSelect(null);
-              onAuthoritativeSelect({ kind: "edge", id: edge.id });
+              selectAuthoritative({ kind: "edge", id: edge.id });
             }
           }}
-          onPaneClick={onClearSelection}
+          onPaneClick={() => {
+            cancelPendingEdgeFocus();
+            onClearSelection();
+          }}
           onMoveEnd={(event, viewport) => {
             if (event !== null) {
               onViewportChange(viewport);
@@ -1413,10 +1495,13 @@ export default function App() {
   });
   const viewRef = useRef(view);
   const pendingFocusRef = useRef<string | null>(null);
+  const presentationFocusEpochRef = useRef(0);
   const pendingPresentationFocusRef = useRef<{
     invoker: HTMLElement | null;
     groupId: string | null;
     retainInvoker: boolean;
+    originView: "topology" | "semantic";
+    epoch: number;
   } | null>(null);
   const lastRefreshRemovedSelectionRef = useRef(false);
   const editorInvokerRef = useRef<HTMLElement | null>(null);
@@ -1631,7 +1716,28 @@ export default function App() {
       return;
     }
     pendingPresentationFocusRef.current = null;
+    if (pending.originView !== view) {
+      return;
+    }
+    const scheduledView = view;
     requestAnimationFrame(() => {
+      // A presentation action can enqueue focus restoration just before the
+      // operator changes views. Never let that stale callback steal focus
+      // from the newly activated view control.
+      if (
+        pending.epoch !== presentationFocusEpochRef.current ||
+        viewRef.current !== scheduledView
+      ) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      const invokerDetached = pending.invoker !== null && !pending.invoker.isConnected;
+      if (
+        activeElement !== pending.invoker &&
+        !(activeElement === document.body && invokerDetached)
+      ) {
+        return;
+      }
       if (pending.retainInvoker && pending.invoker?.isConnected) {
         pending.invoker.focus();
         return;
@@ -1819,6 +1925,8 @@ export default function App() {
       invoker,
       groupId,
       retainInvoker: invoker?.closest("#semantic-topology-region") !== null,
+      originView: viewRef.current,
+      epoch: ++presentationFocusEpochRef.current,
     };
     setPresentationMode("grouped");
     setIsolatedGroupId(groupId);
@@ -1830,6 +1938,18 @@ export default function App() {
     setAuthoritativeSelection(null);
     setPresentationSelection(null);
   }, []);
+
+  const cancelPendingPresentationFocus = useCallback(() => {
+    presentationFocusEpochRef.current += 1;
+    pendingPresentationFocusRef.current = null;
+  }, []);
+  const activateDashboardView = useCallback(
+    (nextView: "topology" | "semantic") => {
+      cancelPendingPresentationFocus();
+      setView(nextView);
+    },
+    [cancelPendingPresentationFocus],
+  );
 
   const openEditor = useCallback((node: DisplayNode, invoker?: HTMLElement) => {
     editorInvokerRef.current =
@@ -1992,14 +2112,16 @@ export default function App() {
           <button
             type="button"
             aria-pressed={view === "topology"}
-            onClick={() => setView("topology")}
+            onFocus={cancelPendingPresentationFocus}
+            onClick={() => activateDashboardView("topology")}
           >
             Topology
           </button>
           <button
             type="button"
             aria-pressed={view === "semantic"}
-            onClick={() => setView("semantic")}
+            onFocus={cancelPendingPresentationFocus}
+            onClick={() => activateDashboardView("semantic")}
           >
             Semantic topology
           </button>
@@ -2097,6 +2219,8 @@ export default function App() {
                                 invoker,
                                 groupId,
                                 retainInvoker: true,
+                                originView: viewRef.current,
+                                epoch: ++presentationFocusEpochRef.current,
                               };
                               setPresentationMode("grouped");
                               setIsolatedGroupId(groupId);
@@ -2225,4 +2349,5 @@ export {
   focusPersistentInspectorHeading,
   presentationSelectionSurvivesRefresh,
   removedSelectionNotice,
+  synchronizeCanvasEdgeSelection,
 };

@@ -79,8 +79,7 @@ Open both pages in Firefox. Expected before and after page load:
   inspectors;
 - no PATCH, lifecycle POST, group request, preference request, cookie, or
   background synchronization occurs; and
-- the page exposes `Execution control`, `Dashboard views and local
-  preferences`, active primary view, and `Inspector` in that logical order.
+- the page exposes `Execution control`, `Dashboard views and local preferences`, active primary view, and `Inspector` in that logical order.
 
 ## 3. Independent semantic inventory matrix
 
@@ -98,18 +97,18 @@ jq '{nodes:(.nodes|length),edges:(.edges|length)}' \
 Launch each graph with the same command and choose **Semantic topology**.
 Do not use the canvas for this section.
 
-| Graph | Path | Semantic nodes | Semantic edges | Exact sample |
-|---|---|---:|---:|---|
-| Minimal | `libgraph/test/config/topologies/minimal_graph.json` | 2 | 1 | `source_1` index `0` → `sink_1` index `0` |
-| Generic nested | `libgraph/test/config/topologies/generic_nested_semantic.json` | 4 | 3 | `source` name `Data` → `transform_a` index `0`; `transform_a` index `0` → `transform_b` name `Input` |
-| Complex | `libgraph/test/config/topologies/complex_network.json` | 9 | 9 | `source_1` name `Data` → `merge_1` name `In0` |
-| SAR | `examples/SAR/config/sar_stripmap_fanout.json` | 21 | 23 | `fanout` index `0` → `split_tile0` index `0` |
-| FHSS | `libdsp/config/fhss_phase2_binary_iq_receiver.json` | 75 | 137 | `channelizer` index `63` → `detector_63` index `0`; `detector_63` index `0` → `merge` index `64` |
+
+| Graph          | Path                                                           | Semantic nodes | Semantic edges | Exact sample                                                                                           |
+| -------------- | -------------------------------------------------------------- | -------------: | -------------: | ------------------------------------------------------------------------------------------------------ |
+| Minimal        | `libgraph/test/config/topologies/minimal_graph.json`           |              2 |              1 | `source_1` index `0` → `sink_1` index `0`                                                             |
+| Generic nested | `libgraph/test/config/topologies/generic_nested_semantic.json` |              4 |              3 | `source` name `Data` → `transform_a` index `0`; `transform_a` index `0` → `transform_b` name `Input` |
+| Complex        | `libgraph/test/config/topologies/complex_network.json`         |              9 |              9 | `source_1` name `Data` → `merge_1` name `In0`                                                         |
+| SAR            | `examples/SAR/config/sar_stripmap_fanout.json`                 |             21 |             23 | `fanout` index `0` → `split_tile0` index `0`                                                          |
+| FHSS           | `libdsp/config/fhss_phase2_binary_iq_receiver.json`            |             75 |            137 | `channelizer` index `63` → `detector_63` index `0`; `detector_63` index `0` → `merge` index `64`     |
 
 Objective checks for every row:
 
-1. The semantic count reads `Showing N of N authoritative nodes and E of E
-   authoritative edges` with the table values above.
+1. The semantic count reads `Showing N of N authoritative nodes and E of E authoritative edges` with the table values above.
 2. Each node identity appears once as a primary semantic node record. Each
    edge identity appears once as a primary table row.
 3. Node type, connected input/output ports, and complete direct/transitive
@@ -132,25 +131,29 @@ fixture for this complex row. For FHSS,
 the authored `detector-bank` semantic branch remains reachable when 64 nodes
 are canvas-hidden and both 64-member bundles are collapsed.
 
-## 4. Complete keyboard and focus table
+## 4. Complete keyboard and f[](https://)ocus table
 
 Perform this table without a mouse in both source and installed generic pages.
 Record the focused element's accessible name after every row.
 
-| Keys | Starting control | Objective result |
-|---|---|---|
-| `Tab` | browser content start | Focus lands first on **Skip to dashboard view controls** with a visible outline. |
-| `Enter` | skip link | Focus moves to the dashboard view-control region; no request is issued. |
-| `Tab` / `Shift+Tab` | page controls | Stable logical order traverses execution controls, view/reset controls, active view, inspector, and footer without a trap. |
-| `Enter` or `Space` | view/mode/reset/lifecycle button | The named operation activates exactly once; focus remains visible. |
-| `Enter` or `Space` | native semantic group summary | Only semantic disclosure toggles; canvas collapse and requests do not change. |
-| `Enter` or `Space` | semantic node/edge selection | Exact authoritative identity becomes selected and the shared inspector updates. |
-| `Enter` or `Space` | semantic group action | Inspect, canvas collapse/expand, or isolate performs only the action named by the control. |
-| `Enter` or `Space` | breadcrumb, minimap, canvas node/edge, bundle/member | Existing Phase 2 operation remains keyboard operable and updates the same inspector model. |
-| Arrow keys | focused minimap control | Viewport pans in the named direction; `+`/`-` zoom; no graph request occurs. |
-| `Tab` / `Shift+Tab` | open parameter dialog | Focus cycles only among textarea, Save, and Cancel. |
-| `Escape` | open parameter dialog | Dialog closes without saving and focus returns to its invoking control. |
-| `Escape` | elsewhere | No edit is discarded and no lifecycle or graph request occurs. |
+
+| Keys                | Starting control                                     | Objective result                                                                                                           |
+| ------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `Tab`               | browser content start                                | Focus lands first on**Skip to dashboard view controls** with a visible outline.                                            |
+| `Enter`             | skip link                                            | Focus moves to the dashboard view-control region; no request is issued.                                                    |
+| `Tab` / `Shift+Tab` | page controls                                        | Stable logical order traverses execution controls, view/reset controls, active view, inspector, and footer without a trap. |
+| `Enter` or `Space`  | view/mode/reset/lifecycle button                     | The named operation activates exactly once; focus remains visible.                                                         |
+|                     |                                                      |                                                                                                                            |
+|                     |                                                      |                                                                                                                            |
+|                     |                                                      |                                                                                                                            |
+|                     |                                                      |                                                                                                                            |
+| `Enter` or `Space`  | semantic node/edge selection                         | Exact authoritative identity becomes selected and the shared inspector updates.                                            |
+| `Enter` or `Space`  | semantic group action                                | Inspect, canvas collapse/expand, or isolate performs only the action named by the control.                                 |
+| `Enter` or `Space`  | breadcrumb, minimap, canvas node/edge, bundle/member | Existing Phase 2 operation remains keyboard operable and updates the same inspector model.                                 |
+| Arrow keys          | focused minimap control                              | Viewport pans in the named direction;`+`/`-` zoom; no graph request occurs.                                                |
+| `Tab` / `Shift+Tab` | open parameter dialog                                | Focus cycles only among textarea, Save, and Cancel.                                                                        |
+| `Escape`            | open parameter dialog                                | Dialog closes without saving and focus returns to its invoking control.                                                    |
+| `Escape`            | elsewhere                                            | No edit is discarded and no lifecycle or graph request occurs.                                                             |
 
 There are no positive `tabindex` values and no custom ARIA tree/treegrid arrow
 contract. Native list, details/summary, button, table, heading, and region
@@ -307,34 +310,41 @@ source/install as needed. Expected console error count is zero. Record browser
 version, focused accessible name, semantic counts, screenshots, accessibility
 observations, every non-GET request, and unexpected request count.
 
-## 9. Focused human WCAG 2.2 AA worksheet
+## 9. Focused human accessibility check
 
-Record `PASS`, `FAIL`, or `N/A`, evidence path, and observation separately from
-automated results:
+This is a short operator check, not a request to interpret the WCAG standard.
+Use Firefox with the dashboard and one representative graph already running.
+Create one evidence directory outside the source tree, for example
+`build-ninja/ninja-debug/phase3-human-evidence/`. For each row below:
 
-| Criterion | Direct changed-path evidence | Status (PASS/FAIL/N/A) | Evidence path | Observation |
-|---|---|---|---|---|
-| 1.3.1 Info and Relationships | Native headings/lists/details/table/labels and inspector definitions expose structure. |  |  |  |
-| 1.3.2 Meaningful Sequence | DOM and keyboard order follow execution → views → active primary view → inspector. |  |  |  |
-| 1.4.1 Use of Color | Visible selected/state/warning/dirty text and non-color borders/outlines. |  |  |  |
-| 1.4.3 Contrast (Minimum) | Measure normal/secondary/selected/warning/status text combinations. |  |  |  |
-| 1.4.10 Reflow | 320 CSS pixels and 200% zoom retain content; only contained edge table/canvas overflow. |  |  |  |
-| 1.4.11 Non-text Contrast | Measure focus, control borders, selected and warning boundaries. |  |  |  |
-| 1.4.12 Text Spacing | Locked overrides do not clip/hide content or operation. |  |  |  |
-| 2.1.1 Keyboard / 2.1.2 No Keyboard Trap | Complete keyboard table passes; only modal intentionally cycles until Escape/Cancel. |  |  |  |
-| 2.4.3 Focus Order | Recorded focused-name sequence follows meaningful order. |  |  |  |
-| 2.4.7 Focus Visible | Every focused control has a 3px non-color outline. |  |  |  |
-| 2.4.11 Focus Not Obscured (Minimum) | Focused targets remain fully visible at narrow/zoom/modal states. |  |  |  |
-| 2.5.3 Label in Name | Visible button text occurs in accessible names; exact IDs supplement it. |  |  |  |
-| 2.5.8 Target Size (Minimum) | Measure changed targets or record applicable spacing/inline exception. |  |  |  |
-| 3.2.1 On Focus / 3.2.2 On Input | Focus/input alone causes no navigation, PATCH, lifecycle, or graph change. |  |  |  |
-| 3.3.1 Error Identification | Invalid JSON and failed PATCH are named in dialog alert/status. |  |  |  |
-| 3.3.2 Labels or Instructions | Editor names node/type and requires a JSON object. |  |  |  |
-| 3.3.3 Error Suggestion | Parse/type failure provides the corrective JSON-object requirement. |  |  |  |
-| 4.1.2 Name, Role, Value | Accessibility Inspector results for controls, disclosure, selection, modal, and landmarks. |  |  |  |
-| 4.1.3 Status Messages | Fetch/PATCH/removal/preference/command outcomes are concise status or alert messages. |  |  |  |
+1. Perform the action in **What to do**.
+2. Compare the page with **What should happen**.
+3. Enter `PASS`, `FAIL`, or `N/A` in **Result**.
+4. Enter the screenshot filename (or a short screen-recording filename) in
+   **Evidence**.
+5. Write one sentence describing what you observed. A blank evidence or
+   observation cell does not count as a completed check.
 
-Automated tests supplement this worksheet; they do not prove conformance.
+If any row fails, record the failure plainly and stop the Phase 4 gate. Do not
+change a failure to `N/A`. Automated tests support these checks but do not
+replace the human observation.
+
+
+| Check                          | What to do                                                                                                                                                                                     | What should happen                                                                                                                                                                                        | Result (PASS/FAIL/N/A) | Evidence    | What I observed          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------- | ------------------------ |
+| A. Structure and reading order | Read the page from top to bottom, then inspect its headings, controls, active view, and inspector with Firefox Accessibility Inspector.                                                        | Sections occur in a sensible order; headings, lists, tables, labels, expanded/collapsed state, and selected state are exposed with meaningful names and roles.                                            | PASS                   | visual      | the sections were corret |
+| B. Keyboard operation          | Starting at the address bar, use only`Tab`, `Shift+Tab`, `Enter`, `Space`, arrow keys where offered, and `Escape`. Open and close the node editor.                                             | Every action is reachable; focus has a clear outline; order is predictable; focus is not hidden; the editor contains focus while open and returns it on close; there is no keyboard trap.                 | PASS                   | key strokes | working correctly        |
+| C. Color and contrast          | Inspect normal text, secondary text, warnings, status text, buttons, borders, selection, and focus in normal and reduced-motion modes. Use Firefox's contrast result for text where available. | Text and controls remain readable; status and selection are also communicated by words, borders, or symbols rather than color or motion alone; changed targets are large enough or have adequate spacing. | PASS                   | visual      | looks good               |
+| D. Zoom and narrow reflow      | Set Firefox page zoom to 200%, then resize the content viewport to about 320 CSS pixels wide. Repeat once with the text-spacing override from Section 6.                                       | Content remains readable and operable without page-wide horizontal scrolling or clipped controls. Only the labelled graph canvas and edge table may have contained horizontal scrolling.                  | PASS                   | visual      | looks good               |
+| E. Labels and safe focus       | Compare each visible button/control label with the name shown by Firefox Accessibility Inspector. Move focus and change search/filter values without activating a command.                     | Accessible names contain the visible labels. Merely focusing a control or changing a non-submit field does not navigate, patch a node, run a lifecycle command, or alter the graph.                       | PASS                   | visual      | looks good               |
+| F. Error guidance              | Open the node editor, enter invalid JSON, and attempt to apply it. Then cancel without saving.                                                                                                 | A visible, specifically named error explains that a JSON object is required; the invalid value is not applied; the editor remains usable and labelled with the node identity/type.                        | PASS                   | visual      | looks good               |
+| G. Status messages             | Perform one successful local preference change and, if the test setup permits, one successful node edit. Also observe an intentional invalid edit.                                             | Success is announced as status without unexpectedly moving focus; failure is announced as an alert or equivalently urgent message; messages are concise and identify the affected action.                 | PASS                   | visual      | looks good               |
+| H. Reduced motion              | Enable the operating system/browser reduced-motion preference and repeat selection, collapse/expand, and focus changes.                                                                        | No motion is needed to understand state; transitions are absent or effectively immediate; the same state is available as text and static styling.                                                         | PASS                   | visual      | looks good               |
+
+These eight operator checks cover the focused Phase 3 criteria: WCAG 2.2
+1.3.1, 1.3.2, 1.4.1, 1.4.3, 1.4.10, 1.4.11, 1.4.12, 2.1.1, 2.1.2,
+2.4.3, 2.4.7, 2.4.11, 2.5.3, 2.5.8, 3.2.1, 3.2.2, 3.3.1, 3.3.2,
+3.3.3, 4.1.2, and 4.1.3.
 
 ## 10. Troubleshooting
 

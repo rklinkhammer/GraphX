@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Position, ReactFlow, ReactFlowProvider, type Edge, type Node } from "@xyflow/react";
 import { webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -12,6 +13,8 @@ import App, {
   focusPersistentInspectorHeading,
   presentationSelectionSurvivesRefresh,
   removedSelectionNotice,
+  synchronizeCanvasEdgeSelection,
+  TopologyCanvas,
 } from "./App";
 import { adaptPresentationGroups } from "./hierarchy";
 import * as hierarchyLayoutModule from "./hierarchyLayout";
@@ -497,7 +500,6 @@ describe("generic dashboard components", () => {
       screen.getByTestId("topology-canvas").append(edge);
       return edge;
     };
-
     const edge = appendFocusedEdge();
     expect(fireEvent.keyDown(edge, { key: "Enter" })).toBe(false);
     expect(screen.getByTestId("edge-inspector").textContent).toContain(
@@ -513,6 +515,124 @@ describe("generic dashboard components", () => {
     expect(screen.getByTestId("edge-inspector").textContent).toContain(
       "numeric-sink",
     );
+  });
+
+  test("renders reactive exact and bundle selection semantics on React Flow edges", async () => {
+    const nodes: Node[] = [
+      {
+        id: "source",
+        data: {},
+        position: { x: 0, y: 0 },
+        measured: { width: 100, height: 40 },
+        handles: [{
+          id: "out",
+          type: "source",
+          position: Position.Right,
+          x: 100,
+          y: 20,
+          width: 1,
+          height: 1,
+        }],
+      },
+      {
+        id: "sink",
+        data: {},
+        position: { x: 240, y: 0 },
+        measured: { width: 100, height: 40 },
+        handles: [{
+          id: "in",
+          type: "target",
+          position: Position.Left,
+          x: 0,
+          y: 20,
+          width: 1,
+          height: 1,
+        }],
+      },
+    ];
+    const exact: Edge = {
+      id: "exact-edge",
+      source: "source",
+      sourceHandle: "out",
+      target: "sink",
+      targetHandle: "in",
+      ariaLabel: "Edge from source port out name “Data” to sink port in name “Input”",
+      data: { edge: { id: "exact-edge" } },
+    };
+    const bundle: Edge = {
+      id: "bundle-edge",
+      source: "source",
+      sourceHandle: "out",
+      target: "sink",
+      targetHandle: "in",
+      ariaLabel: "Presentation bundle from source to sink containing 2 exact edges",
+      className: "bundle-edge",
+      data: { bundle: { id: "bundle-edge" } },
+    };
+    const renderEdges = (
+      authoritativeSelection: Parameters<typeof synchronizeCanvasEdgeSelection>[1],
+      presentationSelection: Parameters<typeof synchronizeCanvasEdgeSelection>[2],
+    ) => [exact, bundle].map((edge) =>
+      synchronizeCanvasEdgeSelection(
+        edge,
+        authoritativeSelection,
+        presentationSelection,
+      ));
+    const view = render(
+      <ReactFlowProvider>
+        <div style={{ width: 1000, height: 700 }}>
+          <ReactFlow nodes={nodes} edges={renderEdges(null, null)} />
+        </div>
+      </ReactFlowProvider>,
+    );
+    const findEdge = (id: string) => waitFor(() => {
+      const edge = [...view.container.querySelectorAll<SVGGElement>(".react-flow__edge")]
+        .find((candidate) => candidate.dataset.id === id);
+      expect(edge).not.toBeUndefined();
+      return edge!;
+    });
+    const exactElement = await findEdge(exact.id);
+    const bundleElement = await findEdge(bundle.id);
+    expect(exactElement.getAttribute("role")).toBe("button");
+    expect(exactElement.getAttribute("aria-label")).toBe(exact.ariaLabel);
+    expect(exactElement.getAttribute("aria-pressed")).toBe("false");
+    expect(bundleElement.getAttribute("role")).toBe("button");
+    expect(bundleElement.getAttribute("aria-label")).toBe(bundle.ariaLabel);
+    expect(bundleElement.getAttribute("aria-pressed")).toBe("false");
+    expect(bundleElement.classList.contains("bundle-edge")).toBe(true);
+
+    view.rerender(
+      <ReactFlowProvider>
+        <div style={{ width: 1000, height: 700 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={renderEdges({ kind: "edge", id: exact.id }, null)}
+          />
+        </div>
+      </ReactFlowProvider>,
+    );
+    await waitFor(() => {
+      expect(exactElement.getAttribute("aria-pressed")).toBe("true");
+      expect(exactElement.classList.contains("selected")).toBe(true);
+      expect(bundleElement.getAttribute("aria-pressed")).toBe("false");
+    });
+
+    view.rerender(
+      <ReactFlowProvider>
+        <div style={{ width: 1000, height: 700 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={renderEdges(null, { kind: "bundle", id: bundle.id })}
+          />
+        </div>
+      </ReactFlowProvider>,
+    );
+    await waitFor(() => {
+      expect(exactElement.getAttribute("aria-pressed")).toBe("false");
+      expect(exactElement.classList.contains("selected")).toBe(false);
+      expect(bundleElement.getAttribute("aria-pressed")).toBe("true");
+      expect(bundleElement.classList.contains("selected")).toBe(true);
+    });
   });
 
   test("shows loading, empty, and every malformed diagnostic without repair", async () => {
@@ -741,6 +861,262 @@ describe("generic dashboard components", () => {
     expect(screen.getByTestId("canvas-edge-count").textContent).toContain(
       "9 edges",
     );
+  });
+
+  test("selects a React Flow node exactly once through its named button", async () => {
+    const model = adaptGraphDocument(numericPorts);
+    const hierarchy = adaptPresentationGroups(model);
+    const projection = projectPresentation(model, hierarchy, {
+      mode: "raw",
+      collapsedGroupIds: new Set(),
+      isolatedGroupId: null,
+    });
+    const onSelect = vi.fn();
+    render(
+      <>
+        <h2 id="topology-heading">Topology</h2>
+        <TopologyCanvas
+          model={model}
+          hierarchy={hierarchy}
+          projection={projection}
+          authoritativeSelection={null}
+          presentationSelection={null}
+          onAuthoritativeSelect={onSelect}
+          onPresentationSelect={vi.fn()}
+          onToggleGroup={vi.fn()}
+          onIsolateGroup={vi.fn()}
+          onClearSelection={vi.fn()}
+          onLayoutFallback={vi.fn()}
+          preferredViewport={null}
+          viewportResetRevision={0}
+          reducedMotion
+          onViewportChange={vi.fn()}
+        />
+      </>,
+    );
+    const select = await screen.findByRole("button", {
+      name: "Select node numeric-source",
+    });
+    const user = userEvent.setup();
+    for (const activation of ["click", "{Enter}", " "] as const) {
+      onSelect.mockClear();
+      select.focus();
+      if (activation === "click") {
+        await user.click(select);
+      } else {
+        await user.keyboard(activation);
+      }
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith({ kind: "node", id: "numeric-source" });
+      expect(document.activeElement).toBe(select);
+    }
+  });
+
+  test("restores only the latest unsuperseded keyboard edge focus", async () => {
+    installApi(groupedSplitMerge);
+    const { container } = render(<App />);
+    await screen.findByTestId("topology-counts");
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas-edge-count").textContent).toContain("edges"),
+    );
+    const model = adaptGraphDocument(groupedSplitMerge);
+    fireEvent.click(screen.getByRole("button", { name: "Raw topology" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas-edge-count").textContent).toContain("9 edges"),
+    );
+    const [firstId, secondId] = model.edges.slice(0, 2).map((edge) => edge.id);
+    const appendEdge = (edgeId: string) => {
+      const edge = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      edge.classList.add("react-flow__edge");
+      edge.setAttribute("data-id", edgeId);
+      edge.setAttribute("tabindex", "0");
+      screen.getByTestId("topology-canvas").append(edge);
+      return edge;
+    };
+    const frames: FrameRequestCallback[] = [];
+    const frameSpy = vi.spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    const flushFrames = async () => {
+      await act(async () => {
+        for (let count = 0; frames.length > 0 && count < 100; count += 1) {
+          frames.shift()!(performance.now());
+          await Promise.resolve();
+        }
+      });
+    };
+    const clear = () => fireEvent.click(
+      screen.getByRole("button", { name: "Clear topology selection" }),
+    );
+
+    try {
+      let first = appendEdge(firstId);
+      first.focus();
+      fireEvent.keyDown(first, { key: "Enter" });
+      expect(frames.length).toBeGreaterThan(0);
+      first.remove();
+      first = appendEdge(firstId);
+      await flushFrames();
+      expect(document.activeElement).toBe(first);
+
+      clear();
+      first.focus();
+      fireEvent.keyDown(first, { key: "Enter" });
+      const zoom = screen.getByRole("button", { name: "Zoom in topology" });
+      zoom.focus();
+      await flushFrames();
+      expect(document.activeElement).toBe(zoom);
+
+      clear();
+      first.focus();
+      fireEvent.keyDown(first, { key: "Enter" });
+      const rawMode = screen.getByRole("button", { name: "Raw topology" });
+      rawMode.focus();
+      await flushFrames();
+      expect(document.activeElement).toBe(rawMode);
+
+      clear();
+      first.focus();
+      fireEvent.keyDown(first, { key: "Enter" });
+      const second = appendEdge(secondId);
+      second.focus();
+      fireEvent.keyDown(second, { key: "Enter" });
+      await flushFrames();
+      expect(document.activeElement).toBe(second);
+      expect(screen.getByTestId("edge-inspector").textContent).toContain(secondId);
+
+      clear();
+      first.focus();
+      fireEvent.keyDown(first, { key: "Enter" });
+      first.remove();
+      const clearedReplacement = appendEdge(firstId);
+      clear();
+      await flushFrames();
+      expect(document.activeElement).not.toBe(clearedReplacement);
+      expect(screen.queryByTestId("edge-inspector")).toBeNull();
+    } finally {
+      frameSpy.mockRestore();
+    }
+  });
+
+  test("canvas authoritative selection clears stale group or bundle inspection for every input path", async () => {
+    const api = installApi(groupedSplitMerge);
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await screen.findByTestId("topology-counts");
+
+    const sourceWrapper = await waitFor(() => {
+      const node = container.querySelector(
+        '.react-flow__node[data-id="source_1"]',
+      );
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    const sourceCard = sourceWrapper.querySelector(
+      ".graph-node-card",
+    ) as HTMLElement;
+    const nestedSelect = sourceWrapper.querySelector(
+      ".node-keyboard-select",
+    ) as HTMLButtonElement;
+    const pipelineCard = container.querySelector(
+      '.react-flow__node[data-id="pipeline"] .graph-group-card',
+    ) as HTMLElement;
+    expect(sourceCard.getAttribute("tabindex")).toBeNull();
+    expect(pipelineCard.getAttribute("tabindex")).toBeNull();
+    expect(sourceWrapper.getAttribute("tabindex")).not.toBe("0");
+    expect(sourceWrapper.getAttribute("role")).toBeNull();
+    expect(sourceCard.getAttribute("role")).toBeNull();
+    expect(pipelineCard.getAttribute("role")).toBeNull();
+    expect(
+      sourceWrapper.querySelectorAll(
+        '.node-keyboard-select, [data-testid="graph-node-card"][tabindex="0"], :scope[tabindex="0"]',
+      ),
+    ).toHaveLength(1);
+    expect(nestedSelect.getAttribute("aria-pressed")).toBe("false");
+    const fixtureModel = adaptGraphDocument(groupedSplitMerge);
+    const fixtureHierarchy = adaptPresentationGroups(fixtureModel);
+    const fixtureProjection = projectPresentation(
+      fixtureModel,
+      fixtureHierarchy,
+      {
+        mode: "grouped",
+        collapsedGroupIds: new Set(["parallel-stage"]),
+        isolatedGroupId: null,
+      },
+    );
+    const bundleId = fixtureProjection.bundles[0].id;
+
+    const selectGroup = async () => {
+      const inspect = screen.getByRole("button", {
+        name: "Inspect group pipeline",
+      });
+      await user.click(inspect);
+      expect(inspect.getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByTestId("group-inspector").textContent).toContain(
+        "pipeline",
+      );
+    };
+    const selectBundle = async () => {
+      const bundle = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      bundle.classList.add("react-flow__edge");
+      bundle.setAttribute("data-id", bundleId);
+      screen.getByTestId("topology-canvas").append(bundle);
+      fireEvent.keyDown(bundle, { key: "Enter" });
+      expect(screen.getByTestId("bundle-inspector")).toBeTruthy();
+      bundle.remove();
+    };
+    const expectExactNodeInspection = () => {
+      expect(screen.queryByTestId("group-inspector")).toBeNull();
+      expect(screen.queryByTestId("bundle-inspector")).toBeNull();
+      expect(screen.getByTestId("node-inspector").textContent).toContain(
+        "source_1",
+      );
+    };
+
+    await selectGroup();
+    nestedSelect.focus();
+    await user.keyboard("{Enter}");
+    expectExactNodeInspection();
+    expect(nestedSelect.getAttribute("aria-pressed")).toBe("true");
+    expect(document.activeElement).toBe(nestedSelect);
+
+    await selectBundle();
+    nestedSelect.focus();
+    await user.keyboard(" ");
+    expectExactNodeInspection();
+    expect(document.activeElement).toBe(nestedSelect);
+
+    await selectGroup();
+    await user.click(nestedSelect);
+    expectExactNodeInspection();
+    expect(document.activeElement).toBe(nestedSelect);
+
+    await selectBundle();
+    fireEvent.click(sourceWrapper);
+    expectExactNodeInspection();
+
+    for (const key of ["Enter", " "]) {
+      await selectGroup();
+      const exactEdgeId = fixtureProjection.edges.find(
+        (edge) => !fixtureProjection.bundles.some((bundle) => bundle.id === edge.id),
+      )!.id;
+      const exactEdge = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "g",
+      );
+      exactEdge.classList.add("react-flow__edge");
+      exactEdge.setAttribute("data-id", exactEdgeId);
+      screen.getByTestId("topology-canvas").append(exactEdge);
+      exactEdge.setAttribute("tabindex", "0");
+      fireEvent.keyDown(exactEdge, { key });
+      expect(screen.queryByTestId("group-inspector")).toBeNull();
+      expect(screen.getByTestId("edge-inspector")).toBeTruthy();
+      exactEdge.remove();
+    }
+
+    expectOnlyLocalReadRequests(api.fetchMock);
   });
 
   test("preserves hidden authoritative selection through grouped/raw and collapse cycles", async () => {
@@ -1161,6 +1537,99 @@ describe("generic dashboard components", () => {
     expect(saved).not.toHaveProperty("isolatedGroupId");
     expect(saved).not.toHaveProperty("selection");
     expect(saved).not.toHaveProperty("search");
+  });
+
+  test("invalidates unconsumed and scheduled presentation focus on every view activation", async () => {
+    installApi(groupedSplitMerge);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    await user.click(screen.getByRole("button", { name: "Semantic topology" }));
+
+    const frames: FrameRequestCallback[] = [];
+    const frameSpy = vi.spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    const flushFrames = async () => {
+      await act(async () => {
+        for (let count = 0; frames.length > 0 && count < 100; count += 1) {
+          frames.shift()!(performance.now());
+          await Promise.resolve();
+        }
+      });
+    };
+
+    try {
+      const isolateParallel = screen.getByRole("button", {
+        name: "Isolate on canvas: group parallel-stage",
+      });
+      isolateParallel.focus();
+      fireEvent.click(isolateParallel);
+      await flushFrames();
+      expect(document.activeElement).toBe(isolateParallel);
+
+      const semantic = screen.getByRole("button", { name: "Semantic topology" });
+      const isolatePipeline = screen.getByRole("button", {
+        name: "Isolate on canvas: group pipeline",
+      });
+      isolatePipeline.focus();
+      fireEvent.click(isolatePipeline);
+      expect(frames.length).toBeGreaterThan(0);
+      const reset = screen.getByRole("button", {
+        name: "Reset view preferences stored only in this browser",
+      });
+      reset.focus();
+      await flushFrames();
+      expect(document.activeElement).toBe(reset);
+
+      const isolateInputs = screen.getByRole("button", {
+        name: "Isolate on canvas: group inputs",
+      });
+      isolateInputs.focus();
+      fireEvent.click(isolateInputs);
+      expect(frames.length).toBeGreaterThan(0);
+      semantic.focus();
+      fireEvent.click(semantic);
+      expect(semantic.getAttribute("aria-pressed")).toBe("true");
+      await flushFrames();
+      expect(document.activeElement).toBe(semantic);
+
+      const topology = screen.getByRole("button", { name: "Topology" });
+      isolateParallel.focus();
+      fireEvent.click(isolateParallel);
+      expect(frames.length).toBeGreaterThan(0);
+      topology.focus();
+      await flushFrames();
+      expect(document.activeElement).toBe(topology);
+      fireEvent.click(topology);
+      expect(topology.getAttribute("aria-pressed")).toBe("true");
+      await flushFrames();
+      expect(document.activeElement).toBe(topology);
+
+      semantic.focus();
+      fireEvent.click(semantic);
+      await flushFrames();
+      const isolateOutputs = screen.getByRole("button", {
+        name: "Isolate on canvas: group outputs",
+      });
+      act(() => {
+        // This deliberately batches the state changes so the presentation
+        // focus effect cannot consume the semantic request first.
+        isolateOutputs.focus();
+        isolateOutputs.click();
+        topology.focus();
+        topology.click();
+      });
+      expect(topology.getAttribute("aria-pressed")).toBe("true");
+      expect(document.activeElement).toBe(topology);
+      await flushFrames();
+      expect(screen.getByRole("heading", { name: "Read-only topology" })).toBeTruthy();
+      expect(document.activeElement).toBe(topology);
+    } finally {
+      frameSpy.mockRestore();
+    }
   });
 
   test("traps modal Tab, closes on Escape without PATCH, and restores the invoking semantic control", async () => {

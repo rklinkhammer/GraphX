@@ -115,6 +115,45 @@ async function activateButton(page, name, key = "Enter") {
   await page.keyboard.press(key);
 }
 
+async function activateView(page, name, regionSelector, key = "Enter") {
+  await activateButton(page, name, key);
+  try {
+    await page.waitForFunction(
+      (accessibleName, selector) => {
+        const button = [...document.querySelectorAll("button")].find(
+          (candidate) => candidate.textContent?.trim() === accessibleName,
+        );
+        return button?.getAttribute("aria-pressed") === "true" &&
+          document.activeElement === button &&
+          document.querySelector(selector) !== null;
+      },
+      { polling: "raf", timeout: 5_000 },
+      name,
+      regionSelector,
+    );
+  } catch (error) {
+    const state = await page.evaluate((accessibleName, selector) => {
+      const button = [...document.querySelectorAll("button")].find(
+        (candidate) => candidate.textContent?.trim() === accessibleName,
+      );
+      return {
+        buttonConnected: button?.isConnected ?? false,
+        pressed: button?.getAttribute("aria-pressed") ?? null,
+        regionPresent: document.querySelector(selector) !== null,
+        activeTag: document.activeElement?.tagName ?? null,
+        activeName:
+          document.activeElement?.getAttribute("aria-label") ??
+          document.activeElement?.textContent?.trim() ??
+          null,
+      };
+    }, name, regionSelector);
+    throw new Error(
+      `view activation did not settle for ${name} with ${key}: ${JSON.stringify(state)}`,
+      { cause: error },
+    );
+  }
+}
+
 const stem = screenshotPath.slice(0, -extname(screenshotPath).length);
 const narrowScreenshot = `${stem}-narrow${extname(screenshotPath)}`;
 const zoomScreenshot = `${stem}-zoom200${extname(screenshotPath)}`;
@@ -316,6 +355,50 @@ try {
       { polling: "raf", timeout: 5_000 },
       firstGroupId,
     );
+
+    await activateView(page, "Topology", "#topology-heading");
+    const bundleEvidence = await page.evaluate(() => {
+      const edge = document.querySelector(".react-flow__edge.bundle-edge");
+      if (!(edge instanceof SVGGElement)) return null;
+      edge.focus();
+      return {
+        id: edge.getAttribute("data-id"),
+        label: edge.getAttribute("aria-label"),
+        role: edge.getAttribute("role"),
+        tabIndex: edge.getAttribute("tabindex"),
+        pressed: edge.getAttribute("aria-pressed"),
+        selected: edge.classList.contains("selected"),
+        focused: document.activeElement === edge,
+      };
+    });
+    if (bundleEvidence !== null) {
+      requireCondition(
+        bundleEvidence.id &&
+          bundleEvidence.label?.startsWith("Presentation bundle from ") &&
+          bundleEvidence.role === "button" &&
+          bundleEvidence.tabIndex === "0" &&
+          bundleEvidence.pressed === "false" &&
+          !bundleEvidence.selected &&
+          bundleEvidence.focused,
+        `bundle edge semantics mismatch: ${JSON.stringify(bundleEvidence)}`,
+      );
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(
+        (id) => {
+          const edge = [...document.querySelectorAll(".react-flow__edge")]
+            .find((candidate) => candidate.getAttribute("data-id") === id);
+          return document.querySelector('[data-testid="bundle-inspector"]') !== null &&
+            document.querySelector('[data-testid="group-inspector"]') === null &&
+            edge?.getAttribute("aria-pressed") === "true" &&
+            edge.classList.contains("selected") &&
+            document.activeElement === edge;
+        },
+        { polling: "raf", timeout: 5_000 },
+        bundleEvidence.id,
+      );
+    }
+    await activateView(page, "Semantic topology", "#semantic-topology-region");
+    await activateButton(page, `Inspect group ${firstGroupId}`);
     const stateText = await page.$eval(
       `[data-semantic-key="${disclosureKey}"]`,
       (element) => element.textContent ?? "",
@@ -348,6 +431,187 @@ try {
       await page.evaluate((id) => document.activeElement?.getAttribute("aria-label") === `Isolate on canvas: group ${id}`, firstGroupId),
       "semantic isolate activation lost focus",
     );
+    const isolatedGroupNeedsExpansion = await page.evaluate((id) =>
+      [...document.querySelectorAll("button")].some(
+        (button) => button.getAttribute("aria-label") === `Expand on canvas: group ${id}`,
+      ), firstGroupId);
+    if (isolatedGroupNeedsExpansion) {
+      await activateButton(page, `Expand on canvas: group ${firstGroupId}`);
+    }
+
+    const firstCanvasNodeId = sourceDocument.presentation.groups[0].members[0];
+    await activateView(page, "Topology", "#topology-heading");
+    await activateButton(page, "Raw topology");
+    await page.waitForFunction(
+      () => document.querySelector(".react-flow__edge:not(.bundle-edge)") !== null &&
+        [...document.querySelectorAll("button")].some(
+          (button) => button.textContent?.trim() === "Raw topology" &&
+            button.getAttribute("aria-pressed") === "true",
+        ),
+      { polling: "raf", timeout: 10_000 },
+    );
+    const exactEdgeEvidence = await page.evaluate(() => {
+      const edge = document.querySelector(".react-flow__edge:not(.bundle-edge)");
+      if (!(edge instanceof SVGGElement)) return null;
+      edge.focus();
+      return {
+        id: edge.getAttribute("data-id"),
+        label: edge.getAttribute("aria-label"),
+        role: edge.getAttribute("role"),
+        tabIndex: edge.getAttribute("tabindex"),
+        pressed: edge.getAttribute("aria-pressed"),
+        selected: edge.classList.contains("selected"),
+        focused: document.activeElement === edge,
+      };
+    });
+    requireCondition(
+      exactEdgeEvidence?.id &&
+        exactEdgeEvidence.label?.startsWith("Edge from ") &&
+        exactEdgeEvidence.role === "button" &&
+        exactEdgeEvidence.tabIndex === "0" &&
+        exactEdgeEvidence.pressed === "false" &&
+        !exactEdgeEvidence.selected &&
+        exactEdgeEvidence.focused,
+      `exact edge semantics mismatch: ${JSON.stringify(exactEdgeEvidence)}`,
+    );
+    await page.keyboard.press("Enter");
+    try {
+      await page.waitForFunction(
+        (id, label) => {
+          const edge = [...document.querySelectorAll(".react-flow__edge")]
+            .find((candidate) => candidate.getAttribute("data-id") === id);
+          return document.querySelector('[data-testid="edge-inspector"]') !== null &&
+            document.querySelector('[data-testid="group-inspector"]') === null &&
+            document.querySelector('[data-testid="bundle-inspector"]') === null &&
+            edge?.getAttribute("aria-label") === label &&
+            edge.getAttribute("aria-pressed") === "true" &&
+            edge.classList.contains("selected") &&
+            document.activeElement === edge;
+        },
+        { polling: "raf", timeout: 5_000 },
+        exactEdgeEvidence.id,
+        exactEdgeEvidence.label,
+      );
+    } catch (error) {
+      const state = await page.evaluate((id) => {
+        const edge = [...document.querySelectorAll(".react-flow__edge")]
+          .find((candidate) => candidate.getAttribute("data-id") === id);
+        return {
+          edgeConnected: edge?.isConnected ?? false,
+          pressed: edge?.getAttribute("aria-pressed") ?? null,
+          selected: edge?.classList.contains("selected") ?? false,
+          edgeInspector: document.querySelector('[data-testid="edge-inspector"]')?.textContent ?? null,
+          groupInspector: document.querySelector('[data-testid="group-inspector"]') !== null,
+          bundleInspector: document.querySelector('[data-testid="bundle-inspector"]') !== null,
+          activeId: document.activeElement?.getAttribute("data-id") ?? null,
+          activeName: document.activeElement?.getAttribute("aria-label") ?? null,
+        };
+      }, exactEdgeEvidence.id);
+      throw new Error(`exact edge activation did not settle: ${JSON.stringify(state)}`, { cause: error });
+    }
+    await activateButton(page, "Grouped topology");
+    await page.waitForFunction(
+      () => [...document.querySelectorAll("button")].some(
+        (button) => button.textContent?.trim() === "Grouped topology" &&
+          button.getAttribute("aria-pressed") === "true",
+      ),
+      { polling: "raf", timeout: 10_000 },
+    );
+    const selectCanvasNodeName = `Select node ${firstCanvasNodeId}`;
+    await page.waitForFunction(
+      (name) => [...document.querySelectorAll("button")].some(
+        (button) => button.getAttribute("aria-label") === name,
+      ),
+      { polling: "raf", timeout: 10_000 },
+      selectCanvasNodeName,
+    );
+    const canvasNodeSemantics = await page.evaluate((nodeId) => {
+      const wrapper = document.querySelector(`.react-flow__node[data-id="${CSS.escape(nodeId)}"]`);
+      const card = wrapper?.querySelector(".graph-node-card");
+      const select = wrapper?.querySelector(".node-keyboard-select");
+      return {
+        wrapperTabIndex: wrapper?.getAttribute("tabindex") ?? null,
+        wrapperRole: wrapper?.getAttribute("role") ?? null,
+        cardTag: card?.tagName ?? null,
+        cardTabIndex: card?.getAttribute("tabindex") ?? null,
+        cardRole: card?.getAttribute("role") ?? null,
+        selectTag: select?.tagName ?? null,
+        selectPressed: select?.getAttribute("aria-pressed") ?? null,
+      };
+    }, firstCanvasNodeId);
+    requireCondition(
+      canvasNodeSemantics.wrapperTabIndex !== "0" &&
+        canvasNodeSemantics.wrapperRole === null &&
+        canvasNodeSemantics.cardTag === "ARTICLE" &&
+        canvasNodeSemantics.cardTabIndex === null &&
+        canvasNodeSemantics.cardRole === null &&
+        canvasNodeSemantics.selectTag === "BUTTON",
+      `canvas node exposed duplicate or misleading activation semantics: ${JSON.stringify(canvasNodeSemantics)}`,
+    );
+
+    // Puppeteer's Firefox BiDi key map uses the literal space character for
+    // the physical Space key and rejects the Chromium-style "Space" name.
+    for (const key of ["Enter", " "]) {
+      await activateView(page, "Semantic topology", "#semantic-topology-region");
+      await activateButton(page, `Inspect group ${firstGroupId}`);
+      await page.waitForFunction(
+        (id) => document.querySelector('[data-testid="group-inspector"]')?.textContent?.includes(id),
+        { polling: "raf", timeout: 5_000 },
+        firstGroupId,
+      );
+      await activateView(page, "Topology", "#topology-heading");
+      await page.waitForFunction(
+        (name) => [...document.querySelectorAll("button")].some(
+          (button) => button.getAttribute("aria-label") === name,
+        ),
+        { polling: "raf", timeout: 10_000 },
+        selectCanvasNodeName,
+      );
+      await activateButton(page, selectCanvasNodeName, key);
+      await page.waitForFunction(
+        (id, name) =>
+          document.querySelector('[data-testid="node-inspector"]')?.textContent?.includes(id) &&
+          document.querySelector('[data-testid="group-inspector"]') === null &&
+          [...document.querySelectorAll("button")].some(
+            (button) =>
+              button.getAttribute("aria-label") === name &&
+              button.getAttribute("aria-pressed") === "true" &&
+              document.activeElement === button,
+          ),
+        { polling: "raf", timeout: 5_000 },
+        firstCanvasNodeId,
+        selectCanvasNodeName,
+      );
+    }
+
+    await activateView(page, "Semantic topology", "#semantic-topology-region");
+    await activateButton(page, `Inspect group ${firstGroupId}`);
+    await activateView(page, "Topology", "#topology-heading");
+    await page.waitForFunction(
+      (name) => [...document.querySelectorAll("button")].some(
+        (button) => button.getAttribute("aria-label") === name,
+      ),
+      { polling: "raf", timeout: 10_000 },
+      selectCanvasNodeName,
+    );
+    await page.evaluate((nodeId) => {
+      const wrapper = [...document.querySelectorAll(".react-flow__node")].find(
+        (candidate) => candidate.getAttribute("data-id") === nodeId,
+      );
+      const card = wrapper?.querySelector(".graph-node-card");
+      if (!(card instanceof HTMLElement)) {
+        throw new Error(`canvas node card unavailable: ${nodeId}`);
+      }
+      card.click();
+    }, firstCanvasNodeId);
+    await page.waitForFunction(
+      (id) =>
+        document.querySelector('[data-testid="node-inspector"]')?.textContent?.includes(id) &&
+        document.querySelector('[data-testid="group-inspector"]') === null,
+      { polling: "raf", timeout: 5_000 },
+      firstCanvasNodeId,
+    );
+    await activateView(page, "Semantic topology", "#semantic-topology-region");
   }
 
   const contrastEvidence = await page.evaluate(() => {
@@ -591,8 +855,12 @@ try {
   }
 
   await page.waitForFunction(
-    () => localStorage.getItem("graphx.dashboard.presentation") !== null,
+    (settledMode) => {
+      const saved = localStorage.getItem("graphx.dashboard.presentation");
+      return saved !== null && JSON.parse(saved).mode === settledMode;
+    },
     { polling: "raf", timeout: 5_000 },
+    firstGroupId ? "grouped" : "raw",
   );
   await page.evaluate(() => {
     const value = JSON.parse(localStorage.getItem("graphx.dashboard.presentation"));
