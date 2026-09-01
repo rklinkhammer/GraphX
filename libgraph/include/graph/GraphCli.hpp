@@ -1,8 +1,10 @@
 #pragma once
 
+#include "capabilities/CommandCapability.hpp"
 #include "GraphCoordinator.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -38,12 +40,15 @@ public:
     bool UpdateNode(const std::string& id, const nlohmann::json& config);
     
     /// Execution operations
+    bool Configure();
     bool Init();
     bool Start();
     bool Run();
     bool Stop();
     bool Join();
     std::string GetState();
+    const std::optional<capabilities::CommandOperationResult>&
+    GetLastCommandResult() const noexcept { return last_command_result_; }
 
     /// Select the plugin directory used when building the executor.
     void SetPluginDirectory(std::string directory);
@@ -62,6 +67,7 @@ private:
     std::unique_ptr<GraphCoordinator> coordinator_;  // Created after graph loaded
     std::shared_ptr<GraphExecutor> executor_;
     std::shared_ptr<capabilities::CommandCapability> commands_;
+    std::optional<capabilities::CommandOperationResult> last_command_result_;
     std::string graph_path_;
     std::string plugin_directory_ = "./plugins";
     bool dirty_ = false;

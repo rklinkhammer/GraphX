@@ -74,6 +74,56 @@ def minimal_profile():
 
 
 class IndependentWaveformTest(unittest.TestCase):
+    def test_receiver_cxx_mode_accepts_all_cxx26_flag_aliases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            commands = Path(directory) / "compile_commands.json"
+            for flag in ("-std=c++26", "-std=gnu++26",
+                         "-std=c++2c", "-std=gnu++2c"):
+                commands.write_text(json.dumps([{
+                    "directory": directory,
+                    "file": "/source/examples/DSP/src/fhss_demo.cpp",
+                    "arguments": ["c++", flag, "-c", "fhss_demo.cpp"],
+                }]))
+                self.assertEqual(p3.receiver_cxx_mode(commands), "c++26")
+
+    def test_receiver_cxx_mode_ignores_unrelated_compile_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            commands = Path(directory) / "compile_commands.json"
+            commands.write_text(json.dumps([
+                {"file": "/source/unrelated.cpp",
+                 "command": "c++ -std=c++26 -c unrelated.cpp"},
+                {"file": "/source/examples/DSP/src/fhss_demo.cpp",
+                 "command": "c++ -std=c++23 -c fhss_demo.cpp"},
+            ]))
+            self.assertEqual(p3.receiver_cxx_mode(commands), "unverified")
+
+    def test_receiver_compiler_comes_from_exact_receiver_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            commands = Path(directory) / "compile_commands.json"
+            commands.write_text(json.dumps([
+                {"directory": directory, "file": "/source/unrelated.cpp",
+                 "arguments": ["c++", "-std=c++26", "-c", "unrelated.cpp"]},
+                {"directory": directory,
+                 "file": "/source/examples/DSP/src/fhss_demo.cpp",
+                 "arguments": ["g++-14", "-std=gnu++26", "-c",
+                               "fhss_demo.cpp"]},
+            ]))
+            with mock.patch.object(p3.shutil, "which",
+                                   return_value="/usr/bin/g++-14") as which:
+                mode, compiler = p3.receiver_compile_environment(commands)
+            self.assertEqual(mode, "c++26")
+            self.assertEqual(compiler, "/usr/bin/g++-14")
+            which.assert_called_once_with("g++-14")
+            completed = subprocess.CompletedProcess(
+                [compiler, "--version"], 0, "g++-14 test version\n", "")
+            with mock.patch.object(p3.subprocess, "run",
+                                   return_value=completed) as run:
+                self.assertEqual(p3.receiver_compiler_version(compiler),
+                                 "g++-14 test version")
+            run.assert_called_once_with(
+                ["/usr/bin/g++-14", "--version"], text=True,
+                capture_output=True, timeout=10)
+
     def test_canonical_clean_parity_is_secondary_evidence(self):
         executable = os.environ.get("GRAPHX_FHSS_CANONICAL_GENERATOR")
         if not executable:

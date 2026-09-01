@@ -5,7 +5,8 @@ services:
       context: ../..
       dockerfile: containers/sanitizers/Dockerfile
     environment:
-      GRAPHX_BUILD_JOBS: ${GRAPHX_BUILD_JOBS:-2}
+      GRAPHX_BUILD_JOBS: ${GRAPHX_BUILD_JOBS:-1}
+      CMAKE_BUILD_PARALLEL_LEVEL: ${GRAPHX_BUILD_JOBS:-1}
       LOG4CXX_CONFIGURATION: /workspace/GraphX/containers/sanitizers/log4cxx.properties
       ASAN_OPTIONS: detect_leaks=1:halt_on_error=1:abort_on_error=1
       LSAN_OPTIONS: exitcode=23:print_suppressions=0:report_objects=1

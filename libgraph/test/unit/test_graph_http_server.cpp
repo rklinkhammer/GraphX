@@ -5,10 +5,13 @@
 #include "capabilities/CommandCapability.hpp"
 #include "capabilities/MetricsCapability.hpp"
 #include "graph/GraphCoordinator.hpp"
+#include "graph/GraphCli.hpp"
+#include "graph/CapabilityContext.hpp"
 #include "graph/GraphExecutor.hpp"
 #include "graph/GraphExecutorBuilder.hpp"
 #include "graph/GraphHttpServer.hpp"
 #include "graph/IExecutionPolicy.hpp"
+#include "policies/MetricsPolicy.hpp"
 #include "test/TestGraphTopologies.hpp"
 
 #include <arpa/inet.h>
@@ -18,15 +21,19 @@
 
 #include <array>
 #include <atomic>
+#include <barrier>
 #include <cerrno>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <future>
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -35,6 +42,16 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+namespace graph {
+class GraphHttpServerMetricsCallbackProbe {
+public:
+    static GraphHttpServer::MetricsCallbackObservation Run(
+        GraphHttpServer& server) {
+        return server.ProbeMetricsCallbackBoundariesForTesting();
+    }
+};
+}  // namespace graph
 
 namespace {
 
@@ -290,6 +307,69 @@ json RequestJson(const HttpHarness& harness, const std::string& method,
         SendHttpRequest(harness.port, method, path, body)));
 }
 
+json WaitForMetrics(
+    const HttpHarness& harness,
+    const std::function<bool(const json&)>& ready) {
+    json data;
+    for (std::size_t attempt = 0; attempt < 200U; ++attempt) {
+        data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+        if (ready(data)) {
+            return data;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    ADD_FAILURE() << "timed out waiting for metrics: " << data.dump(2);
+    return data;
+}
+
+void StartMetricsRuntime(HttpHarness& harness) {
+    ASSERT_TRUE(harness.executor->Init().success);
+    ASSERT_TRUE(harness.executor->Start().success);
+}
+
+app::metrics::NodeMetricsSchema MakeMetricSchema(
+    app::metrics::MetricTarget target, const std::uint64_t generation,
+    std::string metric_id = "activity", std::string scalar_type = "unsigned",
+    std::string unit = "events", std::string semantics = "gauge",
+    std::string aggregation = "sum") {
+    return {.node_name = "diagnostic-only",
+            .node_type = "RepeatedType",
+            .metrics_schema = json::object(),
+            .event_types = {},
+            .display_hints = json::object(),
+            .target = std::move(target),
+            .graph_generation = generation,
+            .descriptors = {{.metric_id = std::move(metric_id),
+                             .scalar_type = std::move(scalar_type),
+                             .unit = std::move(unit),
+                             .semantics = std::move(semantics),
+                             .aggregation = std::move(aggregation),
+                             .availability_rule = "latest_sample"}}};
+}
+
+app::metrics::MetricsEvent MakeMetricEvent(
+    const app::metrics::NodeMetricsSchema& schema,
+    const std::chrono::system_clock::time_point timestamp,
+    app::metrics::MetricScalar value = std::uint64_t{1},
+    const std::uint64_t epoch = 0U) {
+    const auto& descriptor = schema.descriptors.front();
+    app::metrics::MetricsEvent event;
+    event.timestamp = timestamp;
+    event.source = "diagnostic-only";
+    event.event_type = "sample";
+    event.target = schema.target;
+    event.graph_generation = schema.graph_generation;
+    event.samples = {{.metric_id = descriptor.metric_id,
+                      .scalar_type = descriptor.scalar_type,
+                      .unit = descriptor.unit,
+                      .semantics = descriptor.semantics,
+                      .aggregation = descriptor.aggregation,
+                      .availability_rule = descriptor.availability_rule,
+                      .value = std::move(value),
+                      .counter_epoch = epoch}};
+    return event;
+}
+
 }  // namespace
 
 TEST(GraphHttpServerPhase0Test, InvalidPortsFailWithoutBinding) {
@@ -315,6 +395,1192 @@ TEST(GraphHttpServerPhase0Test, PageAndGraphLoadWithoutInitialization) {
     EXPECT_EQ(harness.executor->GetExecutionState(),
               graph::ExecutionState::CONFIGURED);
     EXPECT_EQ(harness.executor->GetGraphManager(), nullptr);
+}
+
+TEST(GraphHttpServerPhase4Test, GraphResourceCarriesOneAtomicExportIdentity) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    const auto expected = harness.coordinator->Snapshot();
+    const auto response = RequestJson(harness, "GET", "/api/v1/graph");
+    ASSERT_TRUE(response["success"].get<bool>());
+    EXPECT_EQ(response["data"], expected.Document());
+    EXPECT_EQ(response["snapshot"]["coordinator_revision"],
+              expected.Revision());
+    EXPECT_EQ(response["snapshot"]["content_identity"],
+              expected.ContentIdentity());
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ConcurrentGraphExportsNeverMixDocumentRevisionAndContentIdentity) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    std::atomic<bool> done{false};
+    std::thread writer([&] {
+        for (std::uint64_t revision = 1; revision <= 50; ++revision) {
+            const auto before_noop = harness.coordinator->Snapshot();
+            const auto& current_config =
+                before_noop.Document()["nodes"][0]["node_config"];
+            EXPECT_TRUE(harness.coordinator->UpdateNodeConfig(
+                "source_1", current_config));
+            const auto after_noop = harness.coordinator->Snapshot();
+            EXPECT_EQ(after_noop.Revision(), before_noop.Revision());
+            EXPECT_EQ(after_noop.ContentIdentity(),
+                      before_noop.ContentIdentity());
+            EXPECT_EQ(after_noop.Document(), before_noop.Document());
+            EXPECT_FALSE(harness.coordinator->UpdateNodeConfig(
+                "missing-node", json{{"message_count", revision}}));
+            const auto after_failed = harness.coordinator->Snapshot();
+            EXPECT_EQ(after_failed.Revision(), before_noop.Revision());
+            EXPECT_EQ(after_failed.ContentIdentity(),
+                      before_noop.ContentIdentity());
+            EXPECT_EQ(after_failed.Document(), before_noop.Document());
+            EXPECT_TRUE(harness.coordinator->UpdateNodeConfig(
+                "source_1", json{{"message_count", revision}}));
+        }
+        done.store(true, std::memory_order_release);
+    });
+    do {
+        const auto response = RequestJson(harness, "GET", "/api/v1/graph");
+        ASSERT_TRUE(response["success"].get<bool>());
+        const auto revision = response["snapshot"]["coordinator_revision"]
+                                  .get<std::uint64_t>();
+        const graph::GraphConfigurationSnapshot reconstructed(
+            response["data"], revision);
+        EXPECT_EQ(response["snapshot"]["content_identity"],
+                  reconstructed.ContentIdentity());
+        if (revision != 0U) {
+            EXPECT_EQ(response["data"]["nodes"][0]["node_config"]
+                              ["message_count"],
+                      revision);
+        }
+    } while (!done.load(std::memory_order_acquire));
+    writer.join();
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ConcurrentMetricPublicationProducesOnlyInternallyCoherentSnapshots) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    auto schema = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        generation, "left", "unsigned", "items", "gauge", "sum");
+    auto right = schema.descriptors.front();
+    right.metric_id = "right";
+    schema.descriptors.push_back(right);
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+
+    std::barrier start{2};
+    std::atomic<bool> reader_complete{false};
+    std::atomic<std::uint64_t> published{0U};
+    std::thread publisher([&] {
+        start.arrive_and_wait();
+        while (!reader_complete.load(std::memory_order_acquire)) {
+            const auto next = published.fetch_add(1U, std::memory_order_acq_rel) + 1U;
+            auto event = MakeMetricEvent(
+                schema, std::chrono::system_clock::now(), next);
+            auto right_sample = event.samples.front();
+            right_sample.metric_id = "right";
+            event.samples.push_back(std::move(right_sample));
+            EXPECT_TRUE(harness.metrics->InvokeSubscribers(event));
+        }
+    });
+    start.arrive_and_wait();
+    std::uint64_t previous_sequence = 0U;
+    for (std::size_t read = 0U; read < 50U; ++read) {
+        const auto data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+        ASSERT_EQ(data["graph_generation"], generation);
+        ASSERT_EQ(data["schemas"].size(), 2U);
+        ASSERT_EQ(data["values"].size(), 2U);
+        const auto sequence = data["snapshot_sequence"].get<std::uint64_t>();
+        EXPECT_GE(sequence, previous_sequence);
+        previous_sequence = sequence;
+        const auto& left_value = data["values"][0];
+        const auto& right_value = data["values"][1];
+        EXPECT_EQ(left_value["metric_id"], "left");
+        EXPECT_EQ(right_value["metric_id"], "right");
+        EXPECT_EQ(left_value["graph_generation"], generation);
+        EXPECT_EQ(right_value["graph_generation"], generation);
+        EXPECT_EQ(left_value["availability"], right_value["availability"]);
+        EXPECT_EQ(left_value["value"], right_value["value"]);
+        EXPECT_EQ(left_value["sample_time"], right_value["sample_time"]);
+    }
+    reader_complete.store(true, std::memory_order_release);
+    publisher.join();
+    EXPECT_GT(published.load(std::memory_order_acquire), 0U);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     TypedAndCompatibilityInitRoutesPublishEquivalentLifecycleResults) {
+    HttpHarness typed;
+    HttpHarness compatibility;
+    ASSERT_TRUE(typed.server.Start());
+    ASSERT_TRUE(compatibility.server.Start());
+    const auto typed_result = RequestJson(
+        typed, "POST", "/api/v1/execution/commands/init", "{}");
+    const auto compatibility_result = RequestJson(
+        compatibility, "POST", "/api/v1/execution/init");
+    ASSERT_TRUE(typed_result["success"].get<bool>());
+    ASSERT_TRUE(compatibility_result["success"].get<bool>());
+    for (const auto* field : {"command", "status", "state",
+                              "coordinator_revision", "configured_revision",
+                              "active_revision", "graph_generation",
+                              "configuration_dirty"}) {
+        EXPECT_EQ(typed_result["data"][field],
+                  compatibility_result["data"][field]) << field;
+    }
+}
+
+TEST(GraphHttpServerPhase4Test,
+     DeprecatedCliAndHttpUseEquivalentTypedResultsForEveryLifecycleCommand) {
+    const auto graph_path = std::filesystem::current_path() /
+        "phase4-cli-http-equivalence.json";
+    {
+        std::ofstream output(graph_path);
+        output << LoadMinimalGraph();
+    }
+    graph::GraphCli cli;
+    ASSERT_TRUE(cli.LoadGraph(graph_path.string()));
+    cli.SetPluginDirectory(PLUGIN_OUTPUT_DIRECTORY);
+    HttpHarness http;
+    ASSERT_TRUE(http.server.Start());
+
+    const auto await_http = [&](HttpHarness& harness,
+                                const std::string& command,
+                                const bool await_terminal = true) {
+        auto envelope = RequestJson(
+            harness, "POST", "/api/v1/execution/commands/" + command, "{}");
+        auto result = envelope["data"];
+        for (std::size_t attempt = 0U; await_terminal &&
+             (result["status"] == "accepted" || result["status"] == "running") &&
+             attempt < 500U;
+             ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            result = RequestJson(
+                harness, "GET", "/api/v1/execution/operations/" +
+                    result["operation_id"].get<std::string>())["data"];
+        }
+        return result;
+    };
+    const auto compare = [&](const json& http_result) {
+        ASSERT_TRUE(cli.GetLastCommandResult().has_value());
+        const auto& cli_result = *cli.GetLastCommandResult();
+        EXPECT_EQ(http_result["command"],
+                  capabilities::ToString(cli_result.command));
+        EXPECT_EQ(http_result["status"],
+                  capabilities::ToString(cli_result.status));
+        EXPECT_EQ(http_result["state"],
+                  graph::GetExecutionStateName(cli_result.executor_state));
+        EXPECT_EQ(http_result["coordinator_revision"],
+                  cli_result.coordinator_revision);
+        EXPECT_EQ(http_result["configured_revision"],
+                  cli_result.configured_revision
+                      ? json(*cli_result.configured_revision) : json(nullptr));
+        EXPECT_EQ(http_result["active_revision"],
+                  cli_result.active_revision
+                      ? json(*cli_result.active_revision) : json(nullptr));
+        EXPECT_EQ(http_result["graph_generation"],
+                  cli_result.graph_generation);
+        EXPECT_EQ(http_result["configuration_dirty"],
+                  cli_result.configuration_dirty);
+    };
+
+    ASSERT_TRUE(cli.Configure());
+    compare(await_http(http, "configure"));
+    ASSERT_TRUE(cli.Init());
+    compare(await_http(http, "init"));
+    ASSERT_TRUE(cli.Start());
+    compare(await_http(http, "start"));
+    ASSERT_TRUE(cli.Stop());
+    compare(await_http(http, "stop"));
+    ASSERT_TRUE(cli.Join());
+    compare(await_http(http, "join"));
+
+    // Run is blocking in the deprecated terminal adapter but asynchronous over
+    // HTTP. Compare their terminal typed results on fresh equivalent runtimes.
+    ASSERT_TRUE(cli.LoadGraph(graph_path.string()));
+    cli.SetPluginDirectory(PLUGIN_OUTPUT_DIRECTORY);
+    HttpHarness run_http;
+    ASSERT_TRUE(run_http.server.Start());
+    ASSERT_TRUE(cli.Configure());
+    (void)await_http(run_http, "configure");
+    ASSERT_TRUE(cli.Init());
+    (void)await_http(run_http, "init");
+    ASSERT_TRUE(cli.Start());
+    (void)await_http(run_http, "start");
+    ASSERT_TRUE(cli.Run());
+    compare(await_http(run_http, "run"));
+    std::filesystem::remove(graph_path);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     SubscriberRegistrationIsIdempotentAcrossEveryServerLifecyclePath) {
+    HttpHarness harness;
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 0U);
+    ASSERT_TRUE(harness.server.Start());
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 1U);
+    EXPECT_FALSE(harness.server.Start());
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 1U);
+    EXPECT_TRUE(harness.server.Stop());
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 0U);
+    EXPECT_TRUE(harness.server.Stop());
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 0U);
+
+    HttpHarness invalid(0);
+    EXPECT_FALSE(invalid.server.Start());
+    EXPECT_EQ(invalid.metrics->GetCallbackCount(), 0U);
+}
+
+TEST(GraphHttpServerPhase4Test,
+    MetricsSnapshotUsesExactIdentityGenerationTypedValueAndReset) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.executor->Init().success);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    ASSERT_GT(generation, 0U);
+    app::metrics::NodeMetricsSchema schema{
+        .node_name = "a duplicated diagnostic label",
+        .node_type = "DuplicatedType",
+        .metrics_schema = json::object(),
+        .event_types = {},
+        .display_hints = json::object(),
+        .target = {.kind = app::metrics::MetricTarget::Kind::Node,
+                   .node_id = "source_1"},
+        .graph_generation = generation,
+        .descriptors = {{.metric_id = "queue_depth",
+                         .scalar_type = "unsigned",
+                         .unit = "messages",
+                         .semantics = "gauge",
+                         .aggregation = "sum",
+                         .availability_rule = "latest_sample"}}};
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+
+    auto event = MakeMetricEvent(
+        schema, std::chrono::system_clock::now(), std::uint64_t{7});
+    event.source = "not-an-authoritative-id";
+    event.event_type = "snapshot";
+    harness.server.OnMetricsEvent(event);
+
+    const auto data = WaitForMetrics(
+        harness, [](const json& data) {
+            return !data["values"].empty() &&
+                   data["values"][0]["value"] == "7";
+        });
+    SCOPED_TRACE(data.dump(2));
+    EXPECT_EQ(data["schema_version"], 1);
+    EXPECT_EQ(data["graph_generation"], generation);
+    ASSERT_EQ(data["schemas"].size(), 1U);
+    ASSERT_EQ(data["values"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["target"]["node_id"], "source_1");
+    EXPECT_EQ(data["values"][0]["metric_id"], "queue_depth");
+    EXPECT_EQ(data["values"][0]["value"], "7");
+    EXPECT_EQ(data["values"][0]["availability"], "available");
+    const auto rejected_before_paths =
+        data["diagnostics"]["rejected"].get<std::uint64_t>();
+    const auto sample_before_paths = data["diagnostics"]
+        ["rejection_categories"]["sample_contract"].get<std::uint64_t>();
+    const auto authority_before_paths = data["diagnostics"]
+        ["rejection_categories"]["authority_mismatch"].get<std::uint64_t>();
+
+    graph::GraphHttpServer::MetricsCallbackObservation observation;
+    harness.server.SetMetricsCallbackObserverForTesting(
+        [&observation](const auto& current) { observation = current; });
+    auto huge_target = event;
+    huge_target.target = {
+        .kind = app::metrics::MetricTarget::Kind::Edge,
+        .source_node_id = "source_1",
+        .source_port_kind = "name",
+        .source_port = std::string(1U << 20U, 'x'),
+        .target_node_id = "sink_1",
+        .target_port_kind = "index",
+        .target_port = std::uint64_t{0}};
+    EXPECT_NO_THROW(harness.server.OnMetricsEvent(huge_target));
+    EXPECT_EQ(observation.validations, 1U);
+    EXPECT_EQ(observation.target_key_constructions, 0U);
+    EXPECT_EQ(observation.samples_examined, 0U);
+    EXPECT_EQ(observation.mutex_acquisitions, 0U);
+    EXPECT_EQ(observation.socket_operations, 0U);
+    EXPECT_EQ(observation.http_responses, 0U);
+    EXPECT_EQ(observation.json_serializations, 0U);
+    EXPECT_EQ(observation.capability_reentries, 0U);
+    const auto forbidden_boundaries =
+        graph::GraphHttpServerMetricsCallbackProbe::Run(harness.server);
+    EXPECT_EQ(forbidden_boundaries.socket_operations, 1U);
+    EXPECT_EQ(forbidden_boundaries.http_responses, 1U);
+    EXPECT_EQ(forbidden_boundaries.json_serializations, 1U);
+    EXPECT_EQ(forbidden_boundaries.capability_reentries, 1U);
+
+    auto wrong_authority = event;
+    wrong_authority.target.node_id = "unknown-node";
+    harness.server.OnMetricsEvent(wrong_authority);
+    EXPECT_EQ(observation.target_key_constructions, 1U);
+    EXPECT_EQ(observation.mutex_acquisitions, 1U);
+    EXPECT_EQ(observation.samples_examined, 0U);
+
+    auto over_bound = event;
+    over_bound.samples.resize(65U, event.samples.front());
+    const auto rejected_before = data["diagnostics"]["rejected"]
+                                     .get<std::uint64_t>();
+    harness.server.OnMetricsEvent(over_bound);
+    const auto bounded = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_GE(bounded["diagnostics"]["rejected"].get<std::uint64_t>(),
+              rejected_before + 1U);
+    EXPECT_EQ(bounded["values"][0]["value"], "7");
+    const auto categorized =
+        RequestJson(harness, "GET", "/api/v1/metrics")["data"]["diagnostics"];
+    EXPECT_EQ(categorized["rejection_categories"]["sample_contract"],
+              sample_before_paths + 2U);
+    EXPECT_EQ(categorized["rejection_categories"]["authority_mismatch"],
+              authority_before_paths + 1U);
+    EXPECT_EQ(categorized["rejected"], rejected_before_paths + 3U);
+    const auto category_sum =
+        categorized["rejection_categories"]["schema_contract"].get<std::uint64_t>() +
+        categorized["rejection_categories"]["sample_contract"].get<std::uint64_t>() +
+        categorized["rejection_categories"]["authority_mismatch"].get<std::uint64_t>() +
+        categorized["rejection_categories"]["subscriber_failure"].get<std::uint64_t>() +
+        categorized["rejection_categories"]["internal"].get<std::uint64_t>();
+    EXPECT_EQ(category_sum, categorized["rejected"].get<std::uint64_t>());
+    EXPECT_EQ(categorized["dropped_queue_full"], 0U);
+
+    auto recovery = event;
+    recovery.timestamp += std::chrono::milliseconds(1);
+    recovery.samples.front().value = std::uint64_t{9};
+    harness.server.OnMetricsEvent(recovery);
+    const auto recovered = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(recovered["values"][0]["value"], "9");
+    EXPECT_EQ(observation.samples_examined, 1U);
+    EXPECT_EQ(observation.samples_retained, 1U);
+    EXPECT_EQ(observation.mutex_acquisitions, 1U);
+    EXPECT_EQ(observation.socket_operations, 0U);
+    EXPECT_EQ(observation.http_responses, 0U);
+    EXPECT_EQ(observation.json_serializations, 0U);
+    EXPECT_EQ(observation.capability_reentries, 0U);
+
+    ASSERT_TRUE(harness.executor->Start().success);
+    ASSERT_TRUE(harness.executor->Stop().success);
+    ASSERT_TRUE(harness.executor->Join().success);
+    const auto stopped = RequestJson(harness, "GET", "/api/v1/metrics");
+    EXPECT_EQ(stopped["data"]["availability"]["reason"], "execution_stopped");
+    EXPECT_EQ(stopped["data"]["values"][0]["availability"], "unavailable");
+    EXPECT_TRUE(stopped["data"]["values"][0]["value"].is_null());
+    const auto stopped_diagnostics = stopped["data"]["diagnostics"];
+
+    harness.metrics->ResetGeneration(generation + 1U);
+    const auto reset = RequestJson(harness, "GET", "/api/v1/metrics");
+    EXPECT_EQ(reset["data"]["graph_generation"], generation + 1U);
+    EXPECT_TRUE(reset["data"]["values"].empty());
+    EXPECT_EQ(reset["data"]["availability"]["state"], "unavailable");
+    // Generation reset clears retained values, but lifetime diagnostics are
+    // intentionally cumulative so operators can still diagnose prior loss.
+    EXPECT_EQ(reset["data"]["diagnostics"], stopped_diagnostics);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ConcurrentRejectionDiagnosticsRemainCoherentAndMonotonic) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    app::metrics::MetricsEvent invalid_event;
+    invalid_event.graph_generation = 0U;
+
+    std::atomic<bool> begin{false};
+    std::atomic<bool> complete{false};
+    std::thread writer([&] {
+        while (!begin.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        for (std::size_t index = 0U; index < 250U; ++index) {
+            harness.server.OnMetricsEvent(invalid_event);
+            harness.metrics->RecordRejected(
+                capabilities::MetricsRejectionCategory::SchemaContract);
+            if ((index % 8U) == 0U) {
+                std::this_thread::yield();
+            }
+        }
+        complete.store(true, std::memory_order_release);
+    });
+
+    std::array<std::uint64_t, 5U> previous{};
+    std::size_t observations = 0U;
+    begin.store(true, std::memory_order_release);
+    do {
+        const auto diagnostics = RequestJson(
+            harness, "GET", "/api/v1/metrics")["data"]["diagnostics"];
+        const auto& categories = diagnostics["rejection_categories"];
+        const std::array<std::uint64_t, 5U> current = {
+            categories["schema_contract"].get<std::uint64_t>(),
+            categories["sample_contract"].get<std::uint64_t>(),
+            categories["authority_mismatch"].get<std::uint64_t>(),
+            categories["subscriber_failure"].get<std::uint64_t>(),
+            categories["internal"].get<std::uint64_t>()};
+        const auto sum = std::accumulate(current.begin(), current.end(), 0ULL);
+        EXPECT_EQ(diagnostics["rejected"].get<std::uint64_t>(), sum);
+        for (std::size_t index = 0U; index < current.size(); ++index) {
+            EXPECT_GE(current[index], previous[index]);
+        }
+        previous = current;
+        ++observations;
+    } while (!complete.load(std::memory_order_acquire) || observations < 4U);
+    writer.join();
+
+    const auto final_diagnostics = RequestJson(
+        harness, "GET", "/api/v1/metrics")["data"]["diagnostics"];
+    EXPECT_EQ(final_diagnostics["rejection_categories"]["schema_contract"],
+              250U);
+    EXPECT_EQ(final_diagnostics["rejection_categories"]["sample_contract"],
+              250U);
+    EXPECT_EQ(final_diagnostics["rejected"], 500U);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     CounterRatesRequireCompatibleOrderedSamplesAndRejectBadTime) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    auto schema = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        generation, "completed", "unsigned", "items",
+        "monotonic_counter", "rate");
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+    const auto base = std::chrono::system_clock::now() -
+                      std::chrono::milliseconds(500);
+    auto publish = [&](const std::int64_t offset_ms, const std::uint64_t value,
+                       const std::uint64_t epoch = 1U,
+                       const bool accepted = true) {
+        const auto before = RequestJson(
+            harness, "GET", "/api/v1/metrics")["data"];
+        const auto prior_sequence = before["snapshot_sequence"].get<std::uint64_t>();
+        const auto prior_rejected = before["diagnostics"]["rejected"].get<std::uint64_t>();
+        harness.metrics->InvokeSubscribers(MakeMetricEvent(
+            schema, base + std::chrono::milliseconds(offset_ms), value, epoch));
+        return WaitForMetrics(harness, [&](const json& data) {
+            return accepted
+                ? data["snapshot_sequence"].get<std::uint64_t>() > prior_sequence
+                : data["diagnostics"]["rejected"].get<std::uint64_t>() >
+                      prior_rejected;
+        });
+    };
+    auto data = publish(0, 10U);
+    SCOPED_TRACE(data.dump(2));
+    EXPECT_TRUE(data["values"][0]["rate"].is_null());
+    EXPECT_EQ(data["values"][0]["rate_reason"], "not_enough_samples");
+    data = publish(100, 20U);
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 100.0, 0.01);
+    data = publish(200, 30U, 2U);
+    EXPECT_TRUE(data["values"][0]["rate"].is_null());
+    EXPECT_EQ(data["values"][0]["rate_reason"], "counter_epoch_changed");
+    data = publish(300, 5U, 2U);
+    EXPECT_TRUE(data["values"][0]["rate"].is_null());
+    EXPECT_EQ(data["values"][0]["rate_reason"], "counter_not_increasing");
+
+    const auto rejected_before = data["diagnostics"]["rejected"]
+                                     .get<std::uint64_t>();
+    const auto sequence_before_bad_time =
+        data["snapshot_sequence"].get<std::uint64_t>();
+    data = publish(300, 99U, 2U, false);
+    EXPECT_GT(data["snapshot_sequence"].get<std::uint64_t>(),
+              sequence_before_bad_time);
+    EXPECT_EQ(data["values"][0]["value"], "5");
+    EXPECT_TRUE(data["values"][0]["rate"].is_null());
+    EXPECT_EQ(data["values"][0]["rate_reason"],
+              "non_positive_sample_interval");
+    auto future = MakeMetricEvent(schema, std::chrono::system_clock::now() +
+                                  std::chrono::seconds(2), std::uint64_t{100}, 2U);
+    harness.metrics->InvokeSubscribers(future);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(data["values"][0]["value"], "5");
+    EXPECT_GE(data["diagnostics"]["rejected"].get<std::uint64_t>(),
+              rejected_before + 2U);
+
+    auto incompatible = MakeMetricEvent(
+        schema, base + std::chrono::milliseconds(400), std::uint64_t{6}, 2U);
+    incompatible.samples[0].unit = "bytes";
+    harness.metrics->InvokeSubscribers(incompatible);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(data["values"][0]["availability"], "available");
+    EXPECT_EQ(data["values"][0]["value"], "5");
+    EXPECT_EQ(data["values"][0]["rate_reason"],
+              "non_positive_sample_interval");
+    data = publish(500, 7U, 2U);
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 10.0, 0.01);
+
+    incompatible = MakeMetricEvent(
+        schema, base + std::chrono::milliseconds(600), std::int64_t{8}, 2U);
+    incompatible.samples[0].scalar_type = "integer";
+    harness.metrics->InvokeSubscribers(incompatible);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(data["values"][0]["value"], "7");
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 10.0, 0.01);
+
+    incompatible = MakeMetricEvent(
+        schema, base + std::chrono::milliseconds(700), std::uint64_t{9}, 2U);
+    incompatible.samples[0].semantics = "gauge";
+    harness.metrics->InvokeSubscribers(incompatible);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(data["values"][0]["value"], "7");
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 10.0, 0.01);
+
+    auto unavailable = MakeMetricEvent(
+        schema, base + std::chrono::milliseconds(800), std::uint64_t{10}, 2U);
+    unavailable.samples[0].available = false;
+    unavailable.samples[0].unavailable_reason = "publisher_offline";
+    harness.metrics->InvokeSubscribers(unavailable);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(data["values"][0]["availability"], "unavailable");
+    EXPECT_EQ(data["values"][0]["reason"], "publisher_offline");
+    EXPECT_TRUE(data["values"][0]["sample_time"].is_string());
+
+    data = publish(1000, 9007199254740993ULL, 3U);
+    EXPECT_EQ(data["values"][0]["rate_reason"],
+              "incompatible_previous_sample");
+    data = publish(1100, 9007199254740994ULL, 3U);
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 10.0, 0.01);
+    data = publish(1200, std::numeric_limits<std::uint64_t>::max(), 3U);
+    EXPECT_EQ(data["values"][0]["value"], "18446744073709551615");
+
+    auto old = MakeMetricEvent(schema, base + std::chrono::milliseconds(900),
+                               std::uint64_t{11}, 2U);
+    old.graph_generation = generation - 1U;
+    harness.metrics->InvokeSubscribers(old);
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_GE(data["diagnostics"]["rejected"].get<std::uint64_t>(),
+              rejected_before + 3U);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     SignedCounterDeltaIsOverflowFreeAcrossTheFullInt64Range) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    auto schema = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node, .node_id = "source_1"},
+        generation, "signed_completed", "integer", "items",
+        "monotonic_counter", "rate");
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+    const auto base = std::chrono::system_clock::now() -
+                      std::chrono::milliseconds(500);
+    auto publish = [&](const std::int64_t offset, const std::int64_t value) {
+        const auto sequence = RequestJson(
+            harness, "GET", "/api/v1/metrics")["data"]["snapshot_sequence"]
+                .get<std::uint64_t>();
+        harness.server.OnMetricsEvent(MakeMetricEvent(
+            schema, base + std::chrono::milliseconds(offset), value, 1U));
+        return WaitForMetrics(harness, [&](const json& data) {
+            return data["snapshot_sequence"].get<std::uint64_t>() > sequence;
+        });
+    };
+    auto data = publish(0, std::numeric_limits<std::int64_t>::min());
+    EXPECT_EQ(data["values"][0]["value"], "-9223372036854775808");
+    data = publish(100, std::numeric_limits<std::int64_t>::max());
+    EXPECT_EQ(data["values"][0]["value"], "9223372036854775807");
+    EXPECT_DOUBLE_EQ(data["values"][0]["rate"].get<double>(),
+                     static_cast<double>(std::numeric_limits<std::uint64_t>::max()) /
+                         0.1);
+    data = publish(200, -10);
+    EXPECT_EQ(data["values"][0]["rate_reason"], "counter_not_increasing");
+    data = publish(300, 10);
+    EXPECT_NEAR(data["values"][0]["rate"].get<double>(), 200.0, 0.01);
+    data = publish(400, 10);
+    EXPECT_EQ(data["values"][0]["rate_reason"], "counter_not_increasing");
+    data = publish(500, 9);
+    EXPECT_EQ(data["values"][0]["rate_reason"], "counter_not_increasing");
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ExactEdgeTuplesRemainUnboundUntilTheirOwnPublisherProducesData) {
+    HttpHarness numeric;
+    StartMetricsRuntime(numeric);
+    const auto generation = numeric.metrics->GetGraphGeneration();
+    app::metrics::MetricTarget target{
+        .kind = app::metrics::MetricTarget::Kind::Edge,
+        .source_node_id = "source_1",
+        .source_port_kind = "index",
+        .source_port = std::uint64_t{0},
+        .target_node_id = "sink_1",
+        .target_port_kind = "index",
+        .target_port = std::uint64_t{0}};
+    auto schema = MakeMetricSchema(target, generation);
+    numeric.metrics->SetNodeMetricsSchemas({schema, schema});
+    ASSERT_TRUE(numeric.server.Start());
+    auto data = RequestJson(numeric, "GET", "/api/v1/metrics")["data"];
+    SCOPED_TRACE(data.dump(2));
+    ASSERT_EQ(data["schemas"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["reason"], "unbound_edge_identity");
+    EXPECT_TRUE(numeric.metrics->PublishExactEdgeMetrics(MakeMetricEvent(
+        schema, std::chrono::system_clock::now(), std::uint64_t{1})));
+    data = WaitForMetrics(numeric, [](const json& snapshot) {
+        return !snapshot["values"].empty() &&
+               snapshot["values"][0]["availability"] == "available";
+    });
+    EXPECT_EQ(data["values"][0]["availability"], "available");
+    EXPECT_EQ(data["values"][0]["target"]["source_port"]["kind"], "index");
+    EXPECT_EQ(data["values"][0]["target"]["target_port"]["value"], 0U);
+}
+
+TEST(GraphHttpServerPhase4Test, NamedEdgePortsUseTheCompleteExactTuple) {
+    std::ifstream input(
+        std::string{GRAPHX_SOURCE_ROOT} +
+        "/libgraph/test/config/topologies/generic_grouped_split_merge.json");
+    json document;
+    input >> document;
+    HttpHarness harness(ReserveLoopbackPort(), {}, std::move(document));
+    StartMetricsRuntime(harness);
+    app::metrics::MetricTarget target{
+        .kind = app::metrics::MetricTarget::Kind::Edge,
+        .source_node_id = "source_1",
+        .source_port_kind = "name",
+        .source_port = std::string{"Data"},
+        .target_node_id = "merge_1",
+        .target_port_kind = "name",
+        .target_port = std::string{"In0"}};
+    auto schema = MakeMetricSchema(
+        target, harness.metrics->GetGraphGeneration());
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+    EXPECT_TRUE(harness.metrics->PublishExactEdgeMetrics(MakeMetricEvent(
+        schema, std::chrono::system_clock::now(), std::uint64_t{1})));
+    const auto data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    ASSERT_EQ(data["values"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["target"]["source_port"]["kind"], "name");
+    EXPECT_EQ(data["values"][0]["target"]["source_port"]["value"], "Data");
+    EXPECT_EQ(data["values"][0]["target"]["target_port"]["value"], "In0");
+}
+
+TEST(GraphHttpServerPhase4Test,
+     SchemaReplacementPurgesRetainedValuesAndAdmitsFirstNewSampleWithoutGet) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    auto first = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        generation, "first_metric");
+    harness.metrics->SetNodeMetricsSchemas({first});
+    ASSERT_TRUE(harness.server.Start());
+    ASSERT_TRUE(harness.metrics->InvokeSubscribers(MakeMetricEvent(
+        first, std::chrono::system_clock::now(), std::uint64_t{1})));
+    auto data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    ASSERT_EQ(data["values"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["metric_id"], "first_metric");
+    EXPECT_EQ(data["values"][0]["value"], "1");
+
+    auto replacement = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        generation, "replacement_metric");
+    harness.metrics->SetNodeMetricsSchemas({replacement});
+    // Deliberately publish before a metrics GET. The subscriber must refresh
+    // schema authority itself and must not retain/account the removed value.
+    ASSERT_TRUE(harness.metrics->InvokeSubscribers(MakeMetricEvent(
+        replacement, std::chrono::system_clock::now(), std::uint64_t{2})));
+    data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    ASSERT_EQ(data["schemas"].size(), 1U);
+    ASSERT_EQ(data["values"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["metric_id"], "replacement_metric");
+    EXPECT_EQ(data["values"][0]["value"], "2");
+}
+
+TEST(GraphHttpServerPhase4Test,
+     InvalidUtf8MetricValueIsRejectedBeforeItCanPoisonJsonSerialization) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    auto schema = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        harness.metrics->GetGraphGeneration(), "status", "string", "",
+        "state", "none");
+    harness.metrics->SetNodeMetricsSchemas({schema});
+    ASSERT_TRUE(harness.server.Start());
+    auto event = MakeMetricEvent(
+        schema, std::chrono::system_clock::now(), std::string{"\xFF"});
+    harness.server.OnMetricsEvent(event);
+    const auto response = SendHttpRequest(harness.port, "GET", "/api/v1/metrics");
+    ASSERT_EQ(ResponseStatus(response), 200);
+    const auto data = json::parse(ResponseBody(response))["data"];
+    ASSERT_EQ(data["values"].size(), 1U);
+    EXPECT_EQ(data["values"][0]["availability"], "unavailable");
+    EXPECT_GE(data["diagnostics"]["rejected"].get<std::uint64_t>(), 1U);
+    EXPECT_LT(ResponseBody(response).size(), 1024U * 1024U);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ScalarAndRetainedValueByteBoundsKeepResponseBelowOneMiB) {
+    HttpHarness harness;
+    StartMetricsRuntime(harness);
+    const auto generation = harness.metrics->GetGraphGeneration();
+    auto first = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "source_1"},
+        generation, "string_000", "string", "", "gauge", "none");
+    first.descriptors.clear();
+    auto second = first;
+    for (std::size_t index = 0U; index < 80U; ++index) {
+        auto descriptor = MakeMetricSchema(
+            first.target, generation,
+            "string_" + std::to_string(100U + index), "string", "",
+            "gauge", "none").descriptors.front();
+        (index < 64U ? first.descriptors : second.descriptors)
+            .push_back(std::move(descriptor));
+    }
+    harness.metrics->SetNodeMetricsSchemas({first, second});
+    ASSERT_TRUE(harness.server.Start());
+    const auto schemas = harness.metrics->GetNodeMetricsSchemas();
+    ASSERT_EQ(schemas.size(), 2U);
+    auto combined = schemas.front();
+    combined.descriptors.assign(schemas.front().descriptors.begin(),
+                                schemas.front().descriptors.begin() + 3);
+    auto combined_event = MakeMetricEvent(
+        combined, std::chrono::system_clock::now(), std::string(1024U, 'a'));
+    combined_event.samples.clear();
+    for (const auto& descriptor : combined.descriptors) {
+        auto single = combined;
+        single.descriptors = {descriptor};
+        combined_event.samples.push_back(MakeMetricEvent(
+            single, combined_event.timestamp, std::string(1024U, 'a'))
+            .samples.front());
+    }
+    ASSERT_TRUE(harness.metrics->InvokeSubscribers(combined_event));
+    const auto combined_data = RequestJson(
+        harness, "GET", "/api/v1/metrics")["data"];
+    EXPECT_EQ(std::ranges::count_if(
+        combined_data["values"], [](const auto& value) {
+            return value["availability"] == "available";
+        }), 3);
+    const auto rejected_before = harness.metrics->RejectedCount();
+    for (const auto& schema : schemas) {
+        for (const auto& descriptor : schema.descriptors) {
+            auto single = schema;
+            single.descriptors = {descriptor};
+            harness.server.OnMetricsEvent(MakeMetricEvent(
+                single, std::chrono::system_clock::now(),
+                std::string(1024U, 'x')));
+        }
+    }
+    auto too_large = schemas.front();
+    too_large.descriptors = {too_large.descriptors.front()};
+    harness.server.OnMetricsEvent(MakeMetricEvent(
+        too_large, std::chrono::system_clock::now(),
+        std::string(1025U, 'x')));
+    const auto response = SendHttpRequest(harness.port, "GET", "/api/v1/metrics");
+    ASSERT_EQ(ResponseStatus(response), 200);
+    EXPECT_LT(ResponseBody(response).size(), 1024U * 1024U);
+    const auto data = json::parse(ResponseBody(response))["data"];
+    ASSERT_EQ(data["values"].size(), 80U);
+    const auto available = std::ranges::count_if(
+        data["values"], [](const auto& value) {
+            return value["availability"] == "available";
+        });
+    EXPECT_GT(available, 0);
+    EXPECT_LT(available, 80);
+    EXPECT_GT(data["diagnostics"]["rejected"].get<std::uint64_t>(),
+              rejected_before);
+}
+
+TEST(GraphHttpServerPhase4Test,
+     MetricsRouteRejectsWrongMethodAndReturnsBoundedSnapshotUnavailable) {
+    HttpHarness harness;
+    ASSERT_TRUE(harness.server.Start());
+    const auto wrong_method = SendHttpRequest(
+        harness.port, "POST", "/api/v1/metrics", "{}");
+    ASSERT_EQ(ResponseStatus(wrong_method), 405);
+    EXPECT_EQ(ResponseHeader(wrong_method, "Allow"), "GET, OPTIONS");
+
+    harness.server.SetMetricsBodyLimitForTesting(128U);
+    const auto unavailable = SendHttpRequest(
+        harness.port, "GET", "/api/v1/metrics");
+    ASSERT_EQ(ResponseStatus(unavailable), 503);
+    ASSERT_LT(ResponseBody(unavailable).size(), 1024U * 1024U);
+    const auto error = json::parse(ResponseBody(unavailable));
+    EXPECT_FALSE(error["success"].get<bool>());
+    EXPECT_EQ(error["error"], "snapshot_unavailable");
+    harness.server.SetMetricsBodyLimitForTesting(1024U * 1024U);
+    const auto recovered = SendHttpRequest(
+        harness.port, "GET", "/api/v1/metrics");
+    ASSERT_EQ(ResponseStatus(recovered), 200);
+    EXPECT_TRUE(json::parse(ResponseBody(recovered))["success"].get<bool>());
+}
+
+TEST(GraphHttpServerPhase4Test,
+     DuplicateNameAndTypePolicySchemasReachHttpByCanonicalNodeIdOnly) {
+    auto document = LoadMinimalGraph();
+    auto second = document["nodes"][0];
+    document["nodes"][0]["id"] = "source_a";
+    document["nodes"][0]["name"] = "same diagnostic label";
+    second["id"] = "source_b";
+    second["name"] = "same diagnostic label";
+    document["nodes"] = json::array({document["nodes"][0], second});
+    document["edges"] = json::array();
+    HttpHarness harness(ReserveLoopbackPort(), {}, std::move(document));
+    ASSERT_TRUE(harness.server.Start());
+    ASSERT_TRUE(harness.executor->Init().success);
+    const auto schemas = harness.metrics->GetNodeMetricsSchemas();
+    ASSERT_EQ(schemas.size(), 2U);
+    EXPECT_EQ(schemas[0].node_name, schemas[1].node_name);
+    EXPECT_EQ(schemas[0].node_type, schemas[1].node_type);
+    std::set<std::string> canonical_ids;
+    for (const auto& schema : schemas) {
+        canonical_ids.insert(schema.target.node_id);
+        ASSERT_TRUE(harness.metrics->InvokeSubscribers(MakeMetricEvent(
+            schema, std::chrono::system_clock::now(), std::uint64_t{3}, 1U)));
+    }
+    EXPECT_EQ(canonical_ids,
+              (std::set<std::string>{"source_a", "source_b"}));
+    const auto data = RequestJson(harness, "GET", "/api/v1/metrics")["data"];
+    ASSERT_EQ(data["values"].size(), 4U);
+    std::set<std::string> value_targets;
+    for (const auto& value : data["values"]) {
+        value_targets.insert(value["target"]["node_id"].get<std::string>());
+    }
+    EXPECT_EQ(value_targets, canonical_ids);
+}
+
+TEST(MetricsCapabilityPhase4Test,
+     RejectsOverBoundAndMalformedSchemasWithoutPoisoningLaterValidSchema) {
+    {
+        capabilities::MetricsCapability generation_zero;
+        auto zero_schema = MakeMetricSchema(
+            {.kind = app::metrics::MetricTarget::Kind::Node,
+             .node_id = "zero"}, 0U);
+        generation_zero.SetNodeMetricsSchemas({zero_schema});
+        EXPECT_TRUE(generation_zero.GetNodeMetricsSchemas().empty());
+        EXPECT_FALSE(generation_zero.InvokeSubscribers(MakeMetricEvent(
+            zero_schema, std::chrono::system_clock::now(),
+            std::uint64_t{1})));
+    }
+    capabilities::MetricsCapability capability;
+    capability.ResetGeneration(9U);
+    auto invalid = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = std::string(257U, 'x')}, 9U);
+    auto valid = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "exact-node"}, 9U);
+    capability.SetNodeMetricsSchemas({invalid, valid, valid});
+    const auto accepted = capability.GetNodeMetricsSchemas();
+    ASSERT_EQ(accepted.size(), 1U);
+    EXPECT_EQ(accepted[0].target.node_id, "exact-node");
+    EXPECT_GE(capability.RejectedCount(), 1U);
+    EXPECT_GE(capability.RejectionCount(
+                  capabilities::MetricsRejectionCategory::SchemaContract),
+              1U);
+    auto malformed_sample = MakeMetricEvent(
+        valid, std::chrono::system_clock::now(), std::uint64_t{1});
+    malformed_sample.samples.front().scalar_type = "invalid";
+    EXPECT_FALSE(capability.InvokeSubscribers(malformed_sample));
+    EXPECT_GE(capability.RejectionCount(
+                  capabilities::MetricsRejectionCategory::SampleContract),
+              1U);
+
+    auto too_many_descriptors = valid;
+    too_many_descriptors.descriptors.resize(
+        100000U, too_many_descriptors.descriptors.front());
+    const auto rejected_before_large_schema = capability.RejectedCount();
+    capability.SetNodeMetricsSchemas({std::move(too_many_descriptors), valid});
+    const auto after_large_schema = capability.GetNodeMetricsSchemas();
+    ASSERT_EQ(after_large_schema.size(), 1U);
+    EXPECT_EQ(after_large_schema.front().target.node_id, "exact-node");
+    EXPECT_EQ(capability.RejectedCount(), rejected_before_large_schema + 1U);
+
+    auto huge_descriptor_field = valid;
+    huge_descriptor_field.descriptors.front().metric_id =
+        std::string(1000000U, 'm');
+    capability.SetNodeMetricsSchemas({std::move(huge_descriptor_field), valid});
+    ASSERT_EQ(capability.GetNodeMetricsSchemas().size(), 1U);
+    EXPECT_EQ(capability.GetNodeMetricsSchemas().front().target.node_id,
+              "exact-node");
+    auto huge_event_type = valid;
+    huge_event_type.event_types = {std::string(1000000U, 'e')};
+    capability.SetNodeMetricsSchemas({std::move(huge_event_type), valid});
+    ASSERT_EQ(capability.GetNodeMetricsSchemas().size(), 1U);
+
+    const std::string invalid_schema_utf8{"\xC3\x28", 2U};
+    auto invalid_node_name = valid;
+    invalid_node_name.node_name = invalid_schema_utf8;
+    auto invalid_node_type = valid;
+    invalid_node_type.node_type = invalid_schema_utf8;
+    auto invalid_event_type = valid;
+    invalid_event_type.event_types = {invalid_schema_utf8};
+    auto invalid_target_utf8 = valid;
+    invalid_target_utf8.target.node_id = invalid_schema_utf8;
+    auto invalid_descriptor_utf8 = valid;
+    invalid_descriptor_utf8.descriptors.front().metric_id = invalid_schema_utf8;
+    const auto rejected_before_utf8 = capability.RejectedCount();
+    capability.SetNodeMetricsSchemas({
+        invalid_node_name, invalid_node_type, invalid_event_type,
+        invalid_target_utf8, invalid_descriptor_utf8, valid});
+    const auto after_invalid_utf8 = capability.GetNodeMetricsSchemas();
+    ASSERT_EQ(after_invalid_utf8.size(), 1U);
+    EXPECT_EQ(after_invalid_utf8.front().target.node_id, "exact-node");
+    EXPECT_EQ(capability.RejectedCount(), rejected_before_utf8 + 5U);
+
+    auto deeply_nested = valid;
+    deeply_nested.metrics_schema = nlohmann::json::object();
+    auto* cursor = &deeply_nested.metrics_schema;
+    for (std::size_t depth = 0; depth < 1000U; ++depth) {
+        (*cursor)["nested"] = nlohmann::json::object();
+        cursor = &(*cursor)["nested"];
+    }
+    capability.SetNodeMetricsSchemas({std::move(deeply_nested), valid});
+    ASSERT_EQ(capability.GetNodeMetricsSchemas().size(), 1U);
+
+    std::vector<app::metrics::NodeMetricsSchema> too_many_schemas(
+        2049U, valid);
+    capability.SetNodeMetricsSchemas(std::move(too_many_schemas));
+    EXPECT_TRUE(capability.GetNodeMetricsSchemas().empty());
+
+    auto hidden_irrelevant = valid;
+    hidden_irrelevant.target.source_node_id = std::string(100000U, 'x');
+    capability.SetNodeMetricsSchemas({hidden_irrelevant, valid});
+    ASSERT_EQ(capability.GetNodeMetricsSchemas().size(), 1U);
+    EXPECT_EQ(capability.GetNodeMetricsSchemas().front().target.node_id,
+              "exact-node");
+
+    auto same_target_first = MakeMetricSchema(valid.target, 9U, "first");
+    auto same_target_second = MakeMetricSchema(valid.target, 9U, "second");
+    capability.SetNodeMetricsSchemas({same_target_first, same_target_second});
+    class SameTargetSubscriber final : public app::metrics::IMetricsSubscriber {
+    public:
+        void OnMetricsEvent(const app::metrics::MetricsEvent&) override {
+            ++calls;
+        }
+        std::size_t calls{0U};
+    } same_target_subscriber;
+    capability.RegisterMetricsCallback(&same_target_subscriber);
+    EXPECT_TRUE(capability.InvokeSubscribers(MakeMetricEvent(
+        same_target_second, std::chrono::system_clock::now(),
+        std::uint64_t{1})));
+    EXPECT_EQ(same_target_subscriber.calls, 1U);
+    capability.UnregisterMetricsCallback(&same_target_subscriber);
+
+    auto delimiter_a = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "a|metric:b"}, 9U, "c");
+    auto delimiter_b = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Node,
+         .node_id = "a"}, 9U, "b|metric:c");
+    capability.SetNodeMetricsSchemas({delimiter_a, delimiter_b});
+    EXPECT_EQ(capability.GetNodeMetricsSchemas().size(), 2U);
+
+    class AuthoritySubscriber final : public app::metrics::IMetricsSubscriber {
+    public:
+        void OnMetricsEvent(const app::metrics::MetricsEvent&) override {
+            ++calls;
+        }
+        std::size_t calls{0U};
+    } authority_subscriber;
+    capability.RegisterMetricsCallback(&authority_subscriber);
+    auto authoritative = MakeMetricEvent(
+        delimiter_a, std::chrono::system_clock::now(), std::uint64_t{1});
+    capability.InvokeSubscribers(authoritative);
+    EXPECT_EQ(authority_subscriber.calls, 1U);
+    const auto authority_rejected_before = capability.RejectedCount();
+    authoritative.samples[0].metric_id = "unknown";
+    EXPECT_FALSE(capability.InvokeSubscribers(authoritative));
+    EXPECT_EQ(authority_subscriber.calls, 1U);
+    EXPECT_EQ(capability.RejectedCount(), authority_rejected_before + 1U);
+    authoritative.samples[0] = MakeMetricEvent(
+        delimiter_a, std::chrono::system_clock::now(), std::uint64_t{1})
+        .samples[0];
+    authoritative.samples[0].unit = "mismatch";
+    EXPECT_FALSE(capability.InvokeSubscribers(authoritative));
+    EXPECT_EQ(authority_subscriber.calls, 1U);
+    EXPECT_EQ(capability.RejectedCount(), authority_rejected_before + 2U);
+    capability.UnregisterMetricsCallback(&authority_subscriber);
+
+    auto incomplete_edge = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Edge,
+         .source_node_id = "source",
+         .source_port_kind = "index",
+         .source_port = std::uint64_t{0},
+         .target_node_id = "",
+         .target_port_kind = "index",
+         .target_port = std::uint64_t{0}}, 9U);
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(MakeMetricEvent(
+        incomplete_edge, std::chrono::system_clock::now())));
+    auto wrong_generation = incomplete_edge;
+    wrong_generation.target.target_node_id = "sink";
+    wrong_generation.graph_generation = 8U;
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(MakeMetricEvent(
+        wrong_generation, std::chrono::system_clock::now())));
+
+    auto unregistered_edge = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Edge,
+         .source_node_id = "source",
+         .source_port_kind = "index",
+         .source_port = std::uint64_t{0},
+         .target_node_id = "sink",
+         .target_port_kind = "index",
+         .target_port = std::uint64_t{0}}, 9U, "not_registered");
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(MakeMetricEvent(
+        unregistered_edge, std::chrono::system_clock::now())));
+
+    class CountingSubscriber final : public app::metrics::IMetricsSubscriber {
+    public:
+        void OnMetricsEvent(const app::metrics::MetricsEvent&) override {
+            ++calls;
+        }
+        std::size_t calls{0U};
+    } subscriber;
+    capability.RegisterMetricsCallback(&subscriber);
+    auto over_bound = MakeMetricEvent(delimiter_a,
+        std::chrono::system_clock::now());
+    over_bound.samples.resize(100000U, over_bound.samples.front());
+    const auto rejected_before = capability.RejectedCount();
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(over_bound));
+    EXPECT_EQ(subscriber.calls, 0U);
+    EXPECT_EQ(capability.RejectedCount(), rejected_before + 1U);
+    const auto direct_rejected_before = capability.RejectedCount();
+    EXPECT_FALSE(capability.InvokeSubscribers(over_bound));
+    EXPECT_EQ(capability.RejectedCount(), direct_rejected_before + 1U);
+
+    auto bounded_edge = MakeMetricSchema(
+        {.kind = app::metrics::MetricTarget::Kind::Edge,
+         .source_node_id = "source",
+         .source_port_kind = "index",
+         .source_port = std::uint64_t{0},
+         .target_node_id = "sink",
+         .target_port_kind = "index",
+         .target_port = std::uint64_t{0}},
+        9U, "string_0", "string", "", "gauge", "none");
+    bounded_edge.descriptors.clear();
+    for (std::size_t index = 0U; index < 20U; ++index) {
+        bounded_edge.descriptors.push_back(MakeMetricSchema(
+            bounded_edge.target, 9U, "string_" + std::to_string(index),
+            "string", "", "gauge", "none").descriptors.front());
+    }
+    capability.SetNodeMetricsSchemas({bounded_edge});
+    auto bytes_over_limit = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::now(), std::string(1024U, 'x'));
+    bytes_over_limit.samples.clear();
+    for (const auto& descriptor : bounded_edge.descriptors) {
+        auto single = bounded_edge;
+        single.descriptors = {descriptor};
+        bytes_over_limit.samples.push_back(MakeMetricEvent(
+            single, bytes_over_limit.timestamp, std::string(1024U, 'x'))
+            .samples.front());
+    }
+    EXPECT_LE(bytes_over_limit.samples.size(), 64U);
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(bytes_over_limit));
+    EXPECT_FALSE(capability.InvokeSubscribers(bytes_over_limit));
+    EXPECT_EQ(subscriber.calls, 0U);
+
+    auto invalid_utf8 = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::now(), std::string{"\xFF"});
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(invalid_utf8));
+    EXPECT_FALSE(capability.InvokeSubscribers(invalid_utf8));
+    auto future = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::now() +
+                          std::chrono::seconds(2), std::string{"valid"});
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(future));
+    EXPECT_FALSE(capability.InvokeSubscribers(future));
+    auto ancient = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::time_point::min(),
+        std::string{"valid"});
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(ancient));
+    EXPECT_FALSE(capability.InvokeSubscribers(ancient));
+    auto legacy_fields = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::now(), std::string{"valid"});
+    for (std::size_t index = 0U; index < 65U; ++index) {
+        legacy_fields.data.emplace("field_" + std::to_string(index), "1");
+    }
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(legacy_fields));
+    EXPECT_FALSE(capability.InvokeSubscribers(legacy_fields));
+    legacy_fields.data.clear();
+    legacy_fields.data.emplace("field", std::string(20000U, 'x'));
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(legacy_fields));
+    EXPECT_FALSE(capability.InvokeSubscribers(legacy_fields));
+    EXPECT_EQ(subscriber.calls, 0U);
+
+    auto escaped_under = MakeMetricEvent(
+        bounded_edge, std::chrono::system_clock::now(), std::string(1024U, 'x'));
+    escaped_under.samples.resize(1U);
+    escaped_under.data = {{"a", std::string(1024U, '\x01')},
+                          {"b", std::string(1024U, '\x01')}};
+    auto escaped_over = escaped_under;
+    escaped_over.data["c"] = std::string(1024U, '\x01');
+    const auto independent_data_bytes = [](const auto& event) {
+        return nlohmann::json(event.data).dump().size();
+    };
+    EXPECT_LT(independent_data_bytes(escaped_under), 16384U);
+    EXPECT_GT(independent_data_bytes(escaped_over), 16384U);
+    EXPECT_TRUE(capabilities::MetricsCapability::ValidateEventContract(
+        escaped_under));
+    EXPECT_FALSE(capabilities::MetricsCapability::ValidateEventContract(
+        escaped_over));
+    EXPECT_TRUE(capability.PublishExactEdgeMetrics(escaped_under));
+    EXPECT_FALSE(capability.PublishExactEdgeMetrics(escaped_over));
+    EXPECT_EQ(subscriber.calls, 1U);
+    EXPECT_TRUE(capability.InvokeSubscribers(escaped_under));
+    EXPECT_EQ(subscriber.calls, 2U);
+    capability.UnregisterMetricsCallback(&subscriber);
+}
+
+class BlockingMetricsSubscriber final : public app::metrics::IMetricsSubscriber {
+public:
+    void OnMetricsEvent(const app::metrics::MetricsEvent&) override {
+        std::unique_lock lock(mutex);
+        entered = true;
+        condition.notify_all();
+        condition.wait(lock, [this] { return release; });
+    }
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool entered{false};
+    bool release{false};
+};
+
+TEST(MetricsCapabilityPhase4Test,
+     UnregisterWaitsForInFlightCallbackAndDuplicateRegistrationIsIgnored) {
+    capabilities::MetricsCapability capability;
+    BlockingMetricsSubscriber subscriber;
+    capability.RegisterMetricsCallback(&subscriber);
+    capability.RegisterMetricsCallback(&subscriber);
+    ASSERT_EQ(capability.GetCallbackCount(), 1U);
+    std::thread publisher([&] {
+        app::metrics::MetricsEvent event;
+        event.target.kind = app::metrics::MetricTarget::Kind::Node;
+        event.target.node_id = "subscriber-test";
+        capability.InvokeSubscribers(event);
+    });
+    {
+        std::unique_lock lock(subscriber.mutex);
+        subscriber.condition.wait(lock, [&] { return subscriber.entered; });
+    }
+    auto removal = std::async(std::launch::async, [&] {
+        capability.UnregisterMetricsCallback(&subscriber);
+    });
+    EXPECT_EQ(removal.wait_for(std::chrono::milliseconds(20)),
+              std::future_status::timeout);
+    {
+        std::scoped_lock lock(subscriber.mutex);
+        subscriber.release = true;
+    }
+    subscriber.condition.notify_all();
+    publisher.join();
+    EXPECT_EQ(removal.wait_for(std::chrono::seconds(1)),
+              std::future_status::ready);
+    EXPECT_EQ(capability.GetCallbackCount(), 0U);
+}
+
+TEST(GraphManagerPhase4Test,
+     DuplicateCanonicalIdPreservesNodeIdentityVectorAlignment) {
+    graph::GraphManager manager;
+    manager.AddNode(std::make_shared<test::SourceTestNode>(), "duplicate-id");
+    const auto nodes_before = manager.GetNodes().size();
+    const auto ids_before = manager.GetCanonicalNodeIds();
+    EXPECT_THROW(
+        manager.AddNode(std::make_shared<test::SourceTestNode>(),
+                        "duplicate-id"),
+        std::invalid_argument);
+    EXPECT_EQ(manager.GetNodes().size(), nodes_before);
+    EXPECT_EQ(manager.GetCanonicalNodeIds(), ids_before);
+    manager.AddNode(std::make_shared<test::SinkTestNode>(), "sink-id");
+    ASSERT_EQ(manager.GetNodes().size(), manager.GetCanonicalNodeIds().size());
+    EXPECT_EQ(manager.GetCanonicalNodeIds().back(), "sink-id");
 }
 
 TEST(GraphHttpServerPhase1Test,
@@ -531,28 +1797,52 @@ TEST(GraphHttpServerPhase1Test,
     HttpHarness harness;
     ASSERT_TRUE(harness.server.Start());
 
-    std::vector<int> admitted_clients;
+    struct ClientSockets {
+        ~ClientSockets() {
+            for (const int descriptor : descriptors) {
+                ::close(descriptor);
+            }
+        }
+        std::vector<int> descriptors;
+    } clients;
     constexpr std::string_view partial_request =
         "GET /api/v1/graph HTTP/1.1\r\nHost: 127.0.0.1\r\n";
-    const auto admitted_count =
+    constexpr std::size_t overload_count = 64U;
+    clients.descriptors.reserve(
         graph::GraphHttpServer::RequestWorkerLimit() +
-        graph::GraphHttpServer::PendingRequestLimit();
-    admitted_clients.reserve(admitted_count);
-    for (std::size_t index = 0; index < admitted_count; ++index) {
+        graph::GraphHttpServer::PendingRequestLimit() + overload_count);
+
+    for (std::size_t index = 0;
+         index < graph::GraphHttpServer::RequestWorkerLimit(); ++index) {
         const int socket_fd = ConnectLoopbackClient(harness.port);
         ASSERT_GE(socket_fd, 0);
+        clients.descriptors.push_back(socket_fd);
         ASSERT_EQ(SendWithoutSigpipe(socket_fd, partial_request),
                   static_cast<ssize_t>(partial_request.size()));
-        admitted_clients.push_back(socket_fd);
     }
-
-    const auto saturated_deadline =
+    const auto active_deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(2);
-    while ((harness.server.ActiveRequestCount() !=
-                graph::GraphHttpServer::RequestWorkerLimit() ||
-            harness.server.PendingRequestCount() !=
-                graph::GraphHttpServer::PendingRequestLimit()) &&
-           std::chrono::steady_clock::now() < saturated_deadline) {
+    while (harness.server.ActiveRequestCount() !=
+               graph::GraphHttpServer::RequestWorkerLimit() &&
+           std::chrono::steady_clock::now() < active_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_EQ(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    for (std::size_t index = 0;
+         index < graph::GraphHttpServer::PendingRequestLimit(); ++index) {
+        const int socket_fd = ConnectLoopbackClient(harness.port);
+        ASSERT_GE(socket_fd, 0);
+        clients.descriptors.push_back(socket_fd);
+        ASSERT_EQ(SendWithoutSigpipe(socket_fd, partial_request),
+                  static_cast<ssize_t>(partial_request.size()));
+    }
+    const auto pending_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (harness.server.PendingRequestCount() !=
+               graph::GraphHttpServer::PendingRequestLimit() &&
+           std::chrono::steady_clock::now() < pending_deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     ASSERT_EQ(harness.server.ActiveRequestCount(),
@@ -560,13 +1850,10 @@ TEST(GraphHttpServerPhase1Test,
     ASSERT_EQ(harness.server.PendingRequestCount(),
               graph::GraphHttpServer::PendingRequestLimit());
 
-    constexpr std::size_t overload_count = 64U;
-    std::vector<int> rejected_clients;
-    rejected_clients.reserve(overload_count);
     for (std::size_t index = 0; index < overload_count; ++index) {
         const int socket_fd = ConnectLoopbackClient(harness.port);
         ASSERT_GE(socket_fd, 0);
-        rejected_clients.push_back(socket_fd);
+        clients.descriptors.push_back(socket_fd);
     }
     const auto rejected_deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(2);
@@ -589,12 +1876,6 @@ TEST(GraphHttpServerPhase1Test,
     EXPECT_EQ(harness.server.ActiveRequestCount(), 0U);
     EXPECT_EQ(harness.server.RetainedRequestWorkerCount(), 0U);
 
-    for (const int client : admitted_clients) {
-        ::close(client);
-    }
-    for (const int client : rejected_clients) {
-        ::close(client);
-    }
 }
 
 TEST(GraphHttpServerPhase1Test, StopInterruptsAndJoinsEveryActiveRequestWorker) {
@@ -644,6 +1925,129 @@ TEST(GraphHttpServerPhase1Test, StopInterruptsAndJoinsEveryActiveRequestWorker) 
     for (const int client : clients) {
         ::close(client);
     }
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ShutdownJoinsActiveMetricsRequestsWithoutRetainedWorkers) {
+    HttpHarness harness;
+    struct SnapshotGate {
+        std::mutex mutex;
+        std::condition_variable condition;
+        std::size_t entered{0U};
+        bool release{false};
+    } gate;
+    harness.server.SetMetricsSnapshotEntryHookForTesting([&] {
+        std::unique_lock lock(gate.mutex);
+        ++gate.entered;
+        gate.condition.notify_all();
+        gate.condition.wait(lock, [&] { return gate.release; });
+    });
+    ASSERT_TRUE(harness.server.Start());
+    std::vector<int> clients;
+    clients.reserve(graph::GraphHttpServer::RequestWorkerLimit());
+    constexpr std::string_view metrics_request =
+        "GET /api/v1/metrics HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+        "Connection: close\r\n\r\n";
+    for (std::size_t index = 0;
+         index < graph::GraphHttpServer::RequestWorkerLimit(); ++index) {
+        const int socket_fd = ConnectLoopbackClient(harness.port);
+        ASSERT_GE(socket_fd, 0);
+        clients.push_back(socket_fd);
+        ASSERT_EQ(SendWithoutSigpipe(socket_fd, metrics_request),
+                  static_cast<ssize_t>(metrics_request.size()));
+    }
+    {
+        std::unique_lock lock(gate.mutex);
+        ASSERT_TRUE(gate.condition.wait_for(lock, std::chrono::seconds(2), [&] {
+            return gate.entered == graph::GraphHttpServer::RequestWorkerLimit();
+        }));
+    }
+    ASSERT_EQ(harness.server.ActiveRequestCount(),
+              graph::GraphHttpServer::RequestWorkerLimit());
+
+    auto stopped = std::async(std::launch::async, [&] {
+        return harness.server.Stop();
+    });
+    EXPECT_EQ(stopped.wait_for(std::chrono::milliseconds(20)),
+              std::future_status::timeout);
+    {
+        std::scoped_lock lock(gate.mutex);
+        gate.release = true;
+    }
+    gate.condition.notify_all();
+    ASSERT_EQ(stopped.wait_for(std::chrono::seconds(2)),
+              std::future_status::ready);
+    EXPECT_TRUE(stopped.get());
+    EXPECT_EQ(harness.server.ActiveRequestCount(), 0U);
+    EXPECT_EQ(harness.server.PendingRequestCount(), 0U);
+    EXPECT_EQ(harness.server.RetainedRequestWorkerCount(), 0U);
+    EXPECT_EQ(harness.metrics->GetCallbackCount(), 0U);
+    for (const int socket_fd : clients) {
+        EXPECT_EQ(::close(socket_fd), 0);
+    }
+}
+
+TEST(GraphHttpServerPhase4Test,
+     ExecutorJoinDrainsAcquiredRealNodePublicationAndDetachesSafely) {
+    auto coordinator = std::make_shared<graph::GraphCoordinator>(
+        LoadMinimalGraph());
+    auto executor = graph::GraphExecutorBuilder()
+                        .WithGraphSnapshot(coordinator->Snapshot())
+                        .WithPluginDirectory(PLUGIN_OUTPUT_DIRECTORY)
+                        .Build();
+    ASSERT_TRUE(executor->Init().success);
+    auto graph_capability =
+        executor->GetCapability<capabilities::GraphCapability>();
+    ASSERT_NE(graph_capability, nullptr);
+    graph::CapabilityContext capability_context{*graph_capability};
+    const auto nodes = executor->GetGraphManager()->GetNodes();
+    std::shared_ptr<graph::IMetricsCallbackProvider> retained_publisher;
+    for (const auto& node : nodes) {
+        auto publisher = capability_context.NodeCapability<
+            graph::IMetricsCallbackProvider>(node);
+        if (publisher) {
+            retained_publisher = *publisher;
+            break;
+        }
+    }
+    ASSERT_NE(retained_publisher, nullptr);
+    ASSERT_TRUE(retained_publisher->HasMetricsCallback());
+    ASSERT_TRUE(executor->Start().success);
+
+    auto acquired_callback = retained_publisher->AcquireMetricsCallback();
+    ASSERT_NE(acquired_callback, nullptr);
+    auto concrete_callback = std::dynamic_pointer_cast<
+        policies::MetricsCapabilityCallback>(acquired_callback);
+    ASSERT_NE(concrete_callback, nullptr);
+    std::atomic<bool> release_publication{false};
+    std::atomic<bool> publication_entered{false};
+    concrete_callback->SetEntryHookForTesting([&] {
+        publication_entered.store(true, std::memory_order_release);
+        while (!release_publication.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+    });
+    std::thread publisher([&] {
+        static_cast<void>(acquired_callback->PublishAsync({}));
+    });
+    while (!publication_entered.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+    ASSERT_TRUE(executor->Stop().success);
+    auto joining = std::async(std::launch::async, [&] { return executor->Join(); });
+    EXPECT_EQ(joining.wait_for(std::chrono::milliseconds(25)),
+              std::future_status::timeout);
+    release_publication.store(true, std::memory_order_release);
+    publisher.join();
+    ASSERT_EQ(joining.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    ASSERT_TRUE(joining.get().success);
+    EXPECT_FALSE(retained_publisher->HasMetricsCallback());
+    EXPECT_EQ(retained_publisher->GetMetricsCallback(), nullptr);
+    EXPECT_EQ(retained_publisher->AcquireMetricsCallback(), nullptr);
+    executor.reset();
+    EXPECT_FALSE(retained_publisher->HasMetricsCallback());
+    EXPECT_EQ(retained_publisher->GetMetricsCallback(), nullptr);
+    EXPECT_FALSE(acquired_callback->PublishAsync({}));
 }
 
 TEST(GraphHttpServerPhase0Test, CommandDiscoveryAndUnknownResources) {

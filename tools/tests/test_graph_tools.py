@@ -114,11 +114,18 @@ def start_dashboard(
 
 
 def verify_cli(cli: Path, graph: Path, work_dir: Path) -> None:
+    help_result = run(str(cli), "--help")
+    if "configure | init | start | run | stop | join | state" not in help_result.stdout:
+        raise AssertionError("graph-cli help omits the typed configure lifecycle")
     count = run(str(cli), "--graph", str(graph), "node-count")
     if "DEPRECATED: graph-cli" not in count.stderr:
         raise AssertionError("graph-cli did not emit its deprecation warning")
     if count.stdout.strip() != "2":
         raise AssertionError(f"unexpected node count: {count.stdout!r}")
+
+    configured = run(str(cli), "--graph", str(graph), "configure")
+    if "DEPRECATED: graph-cli" not in configured.stderr:
+        raise AssertionError("graph-cli configure omitted the deprecation warning")
 
     shown = run(str(cli), "--graph", str(graph), "show", "--format", "json")
     parsed = json.loads(shown.stdout)

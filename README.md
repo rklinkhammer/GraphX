@@ -129,7 +129,13 @@ docker compose -f containers/sanitizers/compose.yaml run --rm sanitizer full
 Container build output is disposable and does not use host build directories
 or `/private/tmp`. See `containers/sanitizers/README.md` for scope and platform
 limitations. Docker remains optional; the host-native commands above are still
-the primary development path.
+the primary development path. The already-required full SAR/CRSD sanitizer
+lane installs its fully pinned Python closure only into
+`/opt/graphx/sar-packages` inside the image. System `python3` loads that target
+through `PYTHONPATH`; the image runs `python3 -m pip check` plus pinned import
+and exact validation of all 14 distributions in
+`containers/sanitizers/requirements-sar.lock`. This creates no SAR virtual
+environment and installs nothing on the host or in a production runtime.
 
 Configure and build a Jetson CUDA debug tree for FHSS CUDA verification:
 
@@ -366,6 +372,15 @@ dashboard_build=build-ninja/ninja-debug
 New operator workflows should use `graphx-dashboard`. Do not add new
 dependencies on `graph-cli`; its removal is gated on browser command,
 graph-export, and documented REST automation coverage.
+
+For the complete source/install, REST, browser, metrics, command, and recorded
+human-gate qualification procedure, use
+[`docs/graphx_dashboard_phase4_operator_test.md`](docs/graphx_dashboard_phase4_operator_test.md).
+That procedure installs both pinned frontend dependency trees before it
+explicitly enables the legacy-backed 70-test qualification inventory. The
+generic dashboard target and assets remain unconditional, and the normal
+native launcher above remains available with the legacy option off and without
+Docker.
 
 An optional repository-local installation preserves host installation state:
 

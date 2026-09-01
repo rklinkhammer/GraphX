@@ -35,18 +35,30 @@ docker compose -f containers/sanitizers/compose.yaml run --rm sanitizer full
 ```
 
 The commands fail on any ASan, LeakSanitizer, UBSan, build, frontend, or test
-failure. `GRAPHX_BUILD_JOBS` defaults to 2 and can be increased explicitly:
+failure. The image installs the fully pinned SAR closure into the container-only
+target `/opt/graphx/sar-packages`, sets `PYTHONPATH`, and uses system `python3`.
+The image runs `python3 -m pip check` and explicit SAR import/version validation
+during its build. Its independent lock verifier compares every installed
+distribution against all 14 exact entries in `requirements-sar.lock` and checks
+the dependency closure. No SAR virtual environment, host package, or production
+dependency is created; the pre-existing contract-validator interpreter remains
+separate at `/opt/graphx/contracts/bin/python`.
+
+`GRAPHX_BUILD_JOBS` defaults to 1 and also sets
+`CMAKE_BUILD_PARALLEL_LEVEL`. This bounds both the primary build and nested
+dashboard-off validation builds. It can be increased explicitly when the
+container has sufficient memory:
+
+```bash
+GRAPHX_BUILD_JOBS=4 docker compose \
+  -f containers/sanitizers/compose.yaml run --rm sanitizer full
+```
 
 The sanitizer preset retains debug information but uses `-O1`, as recommended
 for useful sanitizer execution speed and stack traces. Test deadlines remain
 instrumentation-aware; native production deadlines are unchanged. The preset
 also suppresses GCC 14's `maybe-uninitialized` false positive inside the
 libstdc++ regular-expression implementation; project warnings remain enabled.
-
-```bash
-GRAPHX_BUILD_JOBS=4 docker compose \
-  -f containers/sanitizers/compose.yaml run --rm sanitizer full
-```
 
 Use the native architecture reported by Docker. In particular, do not force
 `linux/amd64` under emulation on Apple Silicon for sanitizer qualification;

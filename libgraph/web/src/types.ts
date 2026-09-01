@@ -155,6 +155,7 @@ export interface NodeCardData extends Record<string, unknown> {
   selected: boolean;
   presentationBoundaryInput: boolean;
   presentationBoundaryOutput: boolean;
+  runtimeText?: string[];
   onSelect?: (selection: Selection) => void;
 }
 
@@ -165,6 +166,7 @@ export interface GroupCardData extends Record<string, unknown> {
   containsSelection: boolean;
   presentationBoundaryInput: boolean;
   presentationBoundaryOutput: boolean;
+  runtimeText?: string[];
   onSelect?: (selection: PresentationSelection) => void;
   onToggle?: (groupId: string) => void;
   onIsolate?: (groupId: string) => void;

@@ -233,7 +233,20 @@ public:
             throw std::runtime_error("Failed to convert node to INode");
         }
         nodes_.push_back(inode);
-        canonical_node_ids_.emplace_back();
+        // Programmatically assembled graphs do not arrive with configuration
+        // document IDs.  The GraphManager still owns their runtime identity,
+        // so assign an exact, deterministic ID instead of leaving a blank
+        // entry that downstream capabilities might mistake for a name.
+        auto runtime_id =
+            "runtime-node-" + std::to_string(nodes_.size() - 1U);
+        for (std::size_t suffix = 1U;
+             std::ranges::find(canonical_node_ids_, runtime_id) !=
+                 canonical_node_ids_.end(); ++suffix) {
+            runtime_id = "runtime-node-" +
+                         std::to_string(nodes_.size() - 1U) + "-" +
+                         std::to_string(suffix);
+        }
+        canonical_node_ids_.push_back(std::move(runtime_id));
         
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "Added node (total: " << nodes_.size() << ")");
@@ -270,8 +283,28 @@ public:
             throw std::runtime_error("Cannot AddNode after Init() - graph already locked");
         }
         
+        if (canonical_node_id.empty()) {
+            canonical_node_id =
+                "runtime-node-" + std::to_string(nodes_.size());
+            for (std::size_t suffix = 1U;
+                 std::ranges::find(canonical_node_ids_, canonical_node_id) !=
+                     canonical_node_ids_.end(); ++suffix) {
+                canonical_node_id = "runtime-node-" +
+                    std::to_string(nodes_.size()) + "-" +
+                    std::to_string(suffix);
+            }
+        } else if (std::ranges::find(canonical_node_ids_, canonical_node_id) !=
+                   canonical_node_ids_.end()) {
+            throw std::invalid_argument("Canonical node ID is already in use: " +
+                                        canonical_node_id);
+        }
         nodes_.push_back(node);
-        canonical_node_ids_.push_back(std::move(canonical_node_id));
+        try {
+            canonical_node_ids_.push_back(std::move(canonical_node_id));
+        } catch (...) {
+            nodes_.pop_back();
+            throw;
+        }
         LOG4CXX_TRACE(log4cxx::Logger::getLogger("graph.graph"),
                      "Added node (total: " << nodes_.size() << ")");
     }

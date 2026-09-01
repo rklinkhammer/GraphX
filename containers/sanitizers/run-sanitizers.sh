@@ -4,8 +4,14 @@ set -euo pipefail
 readonly mode="${1:-focused}"
 readonly preset="ninja-debug-linux-sanitized"
 readonly build_dir="/workspace/GraphX/build-ninja/${preset}"
-readonly jobs="${GRAPHX_BUILD_JOBS:-2}"
-readonly focused_tests='^(libgraph_unit|dsp_example_unit|phase2a_configuration|fhss_phase2_candidate_characterization_smoke|fhss_fixture_topology_generator|graph_cli_help|graph_dashboard_help|graph_cli_node_count|graph_tools_executable_contract)$'
+readonly jobs="${GRAPHX_BUILD_JOBS:-1}"
+readonly focused_tests='^(libgraph_unit|dsp_example_unit|phase2a_configuration|fhss_dashboard_api_contracts|fhss_phase2_candidate_characterization_smoke|fhss_fixture_topology_generator|graph_cli_help|graph_dashboard_help|graph_cli_node_count|graph_tools_executable_contract)$'
+
+if [[ ! "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "GRAPHX_BUILD_JOBS must be a positive integer" >&2
+    exit 64
+fi
+export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
 
 configure() {
     cmake --fresh --preset "${preset}" \

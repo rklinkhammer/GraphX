@@ -92,6 +92,10 @@ GraphExecutor::GraphExecutor( std::unique_ptr<ExecutionPolicyChain> policy_chain
     if (graph_manager_) {
         coordinator_revision_.store(0, std::memory_order_release);
         graph_generation_.store(1, std::memory_order_release);
+        if (auto metrics = graph_capability_->GetCapabilityBus()
+                               .Get<capabilities::MetricsCapability>()) {
+            metrics->ResetGeneration(1U);
+        }
     }
 }
 
@@ -204,7 +208,7 @@ ExecutionResult GraphExecutor::ConfigureGraph(
     }
     if (auto metrics =
             GetCapability<capabilities::MetricsCapability>()) {
-        metrics->ResetGeneration();
+        metrics->ResetGeneration(GetGraphGeneration());
     }
 
     result.success = true;

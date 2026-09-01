@@ -69,8 +69,12 @@ public:
         for (const auto& entry : fs::recursive_directory_iterator(dashboard_root)) {
             if (fs::is_regular_file(entry)) {
                 auto ext = entry.path().extension().string();
+                const auto filename = entry.path().filename().string();
                 for (const auto& source_ext : source_extensions) {
-                    if (ext == source_ext) {
+                    if (ext == source_ext || filename == source_ext ||
+                        (source_ext == ".env.*.local" &&
+                         filename.starts_with(".env.") &&
+                         filename.ends_with(".local"))) {
                         return false;
                     }
                 }

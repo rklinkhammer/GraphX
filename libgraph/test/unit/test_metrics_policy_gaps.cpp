@@ -35,7 +35,11 @@
 #include <vector>
 
 #include "policies/MetricsPolicy.hpp"
+#include "capabilities/GraphCapability.hpp"
+#include "capabilities/MetricsCapability.hpp"
+#include "graph/GraphManagerCore.hpp"
 #include "metrics/MetricsEvent.hpp"
+#include "metrics/IMetricsSubscriber.hpp"
 #include "core/ActiveQueue.hpp"
 #include "test/AdvancedTestNodes.hpp"
 #include "test/TestGraphTopologies.hpp"
@@ -92,6 +96,186 @@ TEST_F(MetricsPolicyGapsFixture, QueueInitializedWithCorrectCapacity) {
         << "Default capacity should be 0 (unbounded queue)";
     EXPECT_EQ(test_queue_->Size(), 0)
         << "New queue should be empty";
+}
+
+TEST(MetricsPolicyPhase4BoundsTest,
+     ProductionCallbackEnforcesFieldByteStringAndQueueDropBounds) {
+    auto manager = std::make_shared<graph::GraphManager>();
+    auto source = std::make_shared<test::SourceTestNode>();
+    manager->AddNode(source, "source-boundary");
+    capabilities::GraphCapability context;
+    context.SetGraphManager(manager);
+    auto metrics = std::make_shared<capabilities::MetricsCapability>();
+    metrics->ResetGeneration(1U);
+    context.GetCapabilityBus().Register<capabilities::MetricsCapability>(metrics);
+    policies::MetricsPolicy policy;
+    ASSERT_TRUE(policy.OnInit(context));
+    auto* callback = source->GetMetricsCallback();
+    ASSERT_NE(callback, nullptr);
+
+    MetricsEvent at_field_limit;
+    at_field_limit.source = "source";
+    at_field_limit.event_type = "bounded";
+    for (std::size_t index = 0U; index < 64U; ++index) {
+        at_field_limit.data.emplace("field_" + std::to_string(index), "1");
+    }
+    EXPECT_TRUE(callback->PublishAsync(at_field_limit));
+    auto over_fields = at_field_limit;
+    over_fields.data.emplace("field_64", "1");
+    EXPECT_FALSE(callback->PublishAsync(over_fields));
+
+    MetricsEvent at_string_limit;
+    at_string_limit.source = "source";
+    at_string_limit.event_type = "bounded";
+    at_string_limit.data.emplace("unknown", std::string(1024U, 'x'));
+    EXPECT_TRUE(callback->PublishAsync(at_string_limit));
+    auto over_string = at_string_limit;
+    over_string.data["unknown"].push_back('x');
+    EXPECT_FALSE(callback->PublishAsync(over_string));
+
+    MetricsEvent at_byte_limit;
+    at_byte_limit.source = std::string(256U, 's');
+    at_byte_limit.event_type = std::string(128U, 'e');
+    for (std::size_t index = 0U; index < 16U; ++index) {
+        at_byte_limit.data.emplace("k" + std::to_string(index),
+                                   std::string(950U, 'v'));
+    }
+    EXPECT_TRUE(callback->PublishAsync(at_byte_limit));
+    at_byte_limit.data.emplace("overflow", std::string(600U, 'v'));
+    EXPECT_FALSE(callback->PublishAsync(at_byte_limit));
+
+    MetricsEvent expanded_over_limit;
+    expanded_over_limit.source = "source";
+    expanded_over_limit.event_type = "expanded";
+    for (std::size_t index = 0U; index < 16U; ++index) {
+        expanded_over_limit.data.emplace(
+            "padding_" + std::to_string(index), std::string(990U, 'p'));
+    }
+    expanded_over_limit.data.emplace("produced_messages", "1");
+    expanded_over_limit.data.emplace("throughput_mps", "1.0");
+    EXPECT_FALSE(callback->PublishAsync(expanded_over_limit));
+    MetricsEvent invalid_utf8;
+    invalid_utf8.event_type = "invalid";
+    invalid_utf8.source = std::string{"\xFF"};
+    EXPECT_FALSE(callback->PublishAsync(invalid_utf8));
+    MetricsEvent future;
+    future.source = "source";
+    future.event_type = "future";
+    future.timestamp = std::chrono::system_clock::now() +
+                       std::chrono::seconds(2);
+    EXPECT_FALSE(callback->PublishAsync(future));
+
+    MetricsEvent queue_event;
+    queue_event.source = "source";
+    queue_event.event_type = "queue";
+    const auto already_queued = 3U;
+    for (std::size_t index = already_queued;
+         index < policies::MetricsPolicy::MetricsQueueCapacity(); ++index) {
+        ASSERT_TRUE(callback->PublishAsync(queue_event)) << index;
+    }
+    EXPECT_FALSE(callback->PublishAsync(queue_event));
+    EXPECT_EQ(metrics->DroppedQueueFullCount(), 1U);
+    policy.OnStop(context);
+    policy.OnJoin(context);
+}
+
+TEST(MetricsPolicyPhase4BoundsTest,
+     ProductionCallbackRejectsOversizedPublisherSamplesBeforeQueueing) {
+    class CountingSubscriber final : public app::metrics::IMetricsSubscriber {
+    public:
+        void OnMetricsEvent(const MetricsEvent&) override { ++published; }
+        std::atomic<std::size_t> published{0U};
+    } subscriber;
+
+    auto manager = std::make_shared<graph::GraphManager>();
+    auto source = std::make_shared<test::SourceTestNode>();
+    manager->AddNode(source, "source-sample-boundary");
+    capabilities::GraphCapability context;
+    context.SetGraphManager(manager);
+    auto metrics = std::make_shared<capabilities::MetricsCapability>();
+    metrics->ResetGeneration(1U);
+    metrics->RegisterMetricsCallback(&subscriber);
+    context.GetCapabilityBus().Register<capabilities::MetricsCapability>(metrics);
+    policies::MetricsPolicy policy;
+    ASSERT_TRUE(policy.OnInit(context));
+    auto* callback = source->GetMetricsCallback();
+    ASSERT_NE(callback, nullptr);
+
+    MetricsEvent oversized;
+    oversized.source = "source";
+    oversized.event_type = "oversized_publisher_samples";
+    oversized.samples.resize(100000U);
+    const auto rejected_before = metrics->RejectedCount();
+    EXPECT_FALSE(callback->PublishAsync(oversized));
+    EXPECT_EQ(metrics->RejectedCount(), rejected_before + 1U);
+
+    MetricsEvent valid;
+    valid.source = "source";
+    valid.event_type = "valid_after_rejection";
+    EXPECT_TRUE(callback->PublishAsync(valid));
+    policy.OnStop(context);
+    policy.OnJoin(context);
+    EXPECT_EQ(subscriber.published.load(), 1U);
+    metrics->UnregisterMetricsCallback(&subscriber);
+}
+
+TEST(MetricsPolicyPhase4BoundsTest,
+     SchemaDiscoveryBoundsFieldCountAndStringsBeforeCopyOrTypeConversion) {
+    class SchemaSource final : public test::SourceTestNode {
+    public:
+        explicit SchemaSource(app::metrics::NodeMetricsSchema schema)
+            : schema_(std::move(schema)) {}
+        app::metrics::NodeMetricsSchema GetNodeMetricsSchema()
+            const noexcept override {
+            return schema_;
+        }
+    private:
+        app::metrics::NodeMetricsSchema schema_;
+    };
+    const auto run = [](app::metrics::NodeMetricsSchema schema) {
+        auto manager = std::make_shared<graph::GraphManager>();
+        manager->AddNode(std::make_shared<SchemaSource>(std::move(schema)),
+                         "schema-source");
+        capabilities::GraphCapability context;
+        context.SetGraphManager(manager);
+        auto metrics = std::make_shared<capabilities::MetricsCapability>();
+        metrics->ResetGeneration(1U);
+        context.GetCapabilityBus().Register<capabilities::MetricsCapability>(
+            metrics);
+        policies::MetricsPolicy policy;
+        EXPECT_TRUE(policy.OnInit(context));
+        return metrics;
+    };
+
+    app::metrics::NodeMetricsSchema too_many;
+    too_many.node_name = "bounded";
+    too_many.node_type = "source";
+    too_many.metrics_schema = nlohmann::json{{"fields", nlohmann::json::array()}};
+    for (std::size_t index = 0U; index < 100000U; ++index) {
+        too_many.metrics_schema["fields"].push_back(nlohmann::json::object());
+    }
+    const auto count_metrics = run(std::move(too_many));
+    EXPECT_TRUE(count_metrics->GetNodeMetricsSchemas().empty());
+    EXPECT_EQ(count_metrics->RejectedCount(), 1U);
+
+    app::metrics::NodeMetricsSchema malformed;
+    malformed.node_name = "bounded";
+    malformed.node_type = "source";
+    malformed.metrics_schema = nlohmann::json{{"fields", nlohmann::json::array({
+        {{"name", std::string(1000000U, 'm')}, {"type", "string"},
+         {"unit", ""}, {"semantics", "gauge"}, {"aggregation", "none"},
+         {"availability_rule", "latest_event"}},
+        {{"name", 7}, {"type", "string"}, {"unit", ""},
+         {"semantics", "gauge"}, {"aggregation", "none"},
+         {"availability_rule", "latest_event"}},
+        {{"name", "valid"}, {"type", "string"}, {"unit", ""},
+         {"semantics", "gauge"}, {"aggregation", "none"},
+         {"availability_rule", "latest_event"}}
+    })}};
+    const auto malformed_metrics = run(std::move(malformed));
+    const auto accepted = malformed_metrics->GetNodeMetricsSchemas();
+    EXPECT_TRUE(accepted.empty());
+    EXPECT_EQ(malformed_metrics->RejectedCount(), 3U);
 }
 
 /**

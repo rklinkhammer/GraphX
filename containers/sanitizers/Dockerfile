@@ -54,12 +54,28 @@ RUN python3 -m venv /opt/graphx/contracts \
         --requirement /opt/graphx/requirements-contracts.lock \
     && /opt/graphx/contracts/bin/python -m pip check
 
+COPY containers/sanitizers/requirements-sar.lock \
+    /opt/graphx/requirements-sar.lock
+COPY containers/sanitizers/verify-python-lock.py \
+    /opt/graphx/verify-python-lock.py
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+        --target /opt/graphx/sar-packages \
+        --requirement /opt/graphx/requirements-sar.lock \
+    && PYTHONPATH=/opt/graphx/sar-packages python3 \
+        /opt/graphx/verify-python-lock.py \
+        /opt/graphx/requirements-sar.lock /opt/graphx/sar-packages \
+    && PYTHONPATH=/opt/graphx/sar-packages python3 -m pip check \
+    && PYTHONPATH=/opt/graphx/sar-packages python3 -c \
+        'import h5py, matplotlib, numpy, sarpy, scipy; print(numpy.__version__, sarpy.__version__)'
+
 WORKDIR /workspace/GraphX
 COPY . .
 
 ENV CC=gcc-14 \
     CXX=g++-14 \
+    PYTHONPATH=/opt/graphx/sar-packages \
     GRAPHX_DASHBOARD_CONTRACT_PYTHON=/opt/graphx/contracts/bin/python \
+    GRAPHX_SAR_PYTHON=/usr/bin/python3 \
     LOG4CXX_CONFIGURATION=/workspace/GraphX/containers/sanitizers/log4cxx.properties \
     ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:abort_on_error=1 \
     LSAN_OPTIONS=exitcode=23:print_suppressions=0:report_objects=1 \

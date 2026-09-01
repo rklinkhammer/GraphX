@@ -31,6 +31,10 @@ import numericPorts from "./test/fixtures/numeric_ports.json";
 import invalidGroups from "./test/fixtures/invalid_groups.json";
 
 const sourceRoot = resolve(process.cwd(), "../..");
+const rejectionCategories = {
+  schema_contract: 0, sample_contract: 0, authority_mismatch: 0,
+  subscriber_failure: 0, internal: 0,
+};
 const groupedSplitMerge = JSON.parse(
   readFileSync(
     resolve(
@@ -57,11 +61,60 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-function installApi(graph: unknown) {
+function graphResponse(data: unknown, revision = 0): Response {
+  return jsonResponse({
+    success: true,
+    data,
+    snapshot: {
+      coordinator_revision: revision,
+      content_identity: `test-content-${revision}`,
+    },
+  });
+}
+
+function phase4ReadResponse(url: string, metricsDocument?: unknown): Response | null {
+  if (url.endsWith("/api/v1/execution/commands")) {
+    return jsonResponse({ success: true, data:
+      ["configure", "init", "start", "run", "stop", "join"].map((name) => ({
+        name,
+        asynchronous: name === "run" || name === "stop" || name === "join",
+        arguments: {},
+        description: `${name} lifecycle command`,
+      })),
+    });
+  }
+  if (url.endsWith("/api/v1/metrics")) {
+    if (metricsDocument !== undefined) return jsonResponse(metricsDocument);
+    return jsonResponse({ success: true, data: {
+      schema_version: 1,
+      graph_generation: 1,
+      active_revision: null,
+      snapshot_sequence: 0,
+      snapshot_time: "2026-08-04T12:00:00.000Z",
+      availability: { state: "unavailable", reason: "no_samples" },
+      schemas: [],
+      values: [],
+      diagnostics: { rejected: 0, dropped_queue_full: 0,
+        rejection_categories: rejectionCategories },
+    } });
+  }
+  return null;
+}
+
+function installApi(
+  graph: unknown,
+  metricsDocument?: unknown,
+  metricsResponder?: (signal: AbortSignal | null) => Promise<Response>,
+) {
   let graphFetches = 0;
   let patched = false;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url.endsWith("/api/v1/metrics") && metricsResponder) {
+      return metricsResponder(init?.signal ?? null);
+    }
+    const phase4 = phase4ReadResponse(url, metricsDocument);
+    if (phase4) return phase4;
     if (url.endsWith("/api/v1/graph")) {
       graphFetches += 1;
       const document = structuredClone(graph) as {
@@ -70,7 +123,7 @@ function installApi(graph: unknown) {
       if (patched && document.nodes?.[0]) {
         document.nodes[0].node_config = { updated: true };
       }
-      return jsonResponse({ success: true, data: document });
+      return graphResponse(document, patched ? 1 : 0);
     }
     if (url.endsWith("/api/v1/execution/state")) {
       return jsonResponse({
@@ -102,6 +155,8 @@ function installRemovingApi() {
   let patched = false;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    const phase4 = phase4ReadResponse(url);
+    if (phase4) return phase4;
     if (url.endsWith("/api/v1/graph")) {
       const graph = structuredClone(numericPorts) as {
         nodes: Array<{ id: string }>;
@@ -111,7 +166,7 @@ function installRemovingApi() {
         graph.nodes = graph.nodes.filter((node) => node.id !== "numeric-source");
         graph.edges = [];
       }
-      return jsonResponse({ success: true, data: graph });
+      return graphResponse(graph, patched ? 1 : 0);
     }
     if (url.endsWith("/api/v1/execution/state")) {
       return jsonResponse({ success: true, data: executionState });
@@ -130,11 +185,13 @@ function installEmptyingApi() {
   let patched = false;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    const phase4 = phase4ReadResponse(url);
+    if (phase4) return phase4;
     if (url.endsWith("/api/v1/graph")) {
-      return jsonResponse({
-        success: true,
-        data: patched ? { nodes: [], edges: [] } : structuredClone(numericPorts),
-      });
+      return graphResponse(
+        patched ? { nodes: [], edges: [] } : structuredClone(numericPorts),
+        patched ? 1 : 0,
+      );
     }
     if (url.endsWith("/api/v1/execution/state")) {
       return jsonResponse({ success: true, data: executionState });
@@ -153,11 +210,13 @@ function installRetryApi() {
   let graphRequests = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
+    const phase4 = phase4ReadResponse(url);
+    if (phase4) return phase4;
     if (url.endsWith("/api/v1/graph")) {
       graphRequests += 1;
       return graphRequests === 1
         ? jsonResponse({ success: false, message: "temporary fetch failure" }, 503)
-        : jsonResponse({ success: true, data: numericPorts });
+        : graphResponse(numericPorts);
     }
     if (url.endsWith("/api/v1/execution/state")) {
       return jsonResponse({ success: true, data: executionState });
@@ -182,6 +241,8 @@ function installPresentationRemovingApi(kind: "group" | "bundle") {
   );
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    const phase4 = phase4ReadResponse(url);
+    if (phase4) return phase4;
     if (url.endsWith("/api/v1/graph")) {
       const graph = structuredClone(groupedSplitMerge) as {
         edges: Array<Record<string, unknown>>;
@@ -198,7 +259,7 @@ function installPresentationRemovingApi(kind: "group" | "bundle") {
           (_edge, index) => !bundledEdges.has(graphModel.edges[index].id),
         );
       }
-      return jsonResponse({ success: true, data: graph });
+      return graphResponse(graph, patched ? 1 : 0);
     }
     if (url.endsWith("/api/v1/execution/state")) {
       return jsonResponse({ success: true, data: executionState });
@@ -217,6 +278,8 @@ function expectOnlyLocalReadRequests(fetchMock: ReturnType<typeof vi.fn>): void 
   const allowed = new Set([
     "GET /api/v1/graph",
     "GET /api/v1/execution/state",
+    "GET /api/v1/execution/commands",
+    "GET /api/v1/metrics",
   ]);
   const actual = fetchMock.mock.calls.map(([input, init]) => {
     const path = new URL(String(input), "http://dashboard.test").pathname;
@@ -258,6 +321,289 @@ afterEach(() => {
 });
 
 describe("generic dashboard components", () => {
+  test("synchronizes one exact metric across canvas, semantic view, and inspector", async () => {
+    const sampleTime = new Date(Date.now() - 1_000).toISOString();
+    const descriptor = {
+      target: { kind: "node", node_id: "numeric-source" },
+      graph_generation: 1,
+      metric_id: "queue_depth",
+      scalar_type: "unsigned",
+      scalar_encoding: "decimal_string",
+      unit: "messages",
+      semantics: "gauge",
+      aggregation: "sum",
+      availability_rule: "latest_event",
+    };
+    installApi(numericPorts, { success: true, data: {
+      schema_version: 1,
+      graph_generation: 1,
+      active_revision: null,
+      snapshot_sequence: 9,
+      snapshot_time: sampleTime,
+      availability: { state: "available", reason: "" },
+      schemas: [descriptor],
+      values: [{
+        ...descriptor,
+        availability: "available",
+        reason: "",
+        value: "37",
+        sample_time: sampleTime,
+      }],
+      diagnostics: { rejected: 0, dropped_queue_full: 0,
+        rejection_categories: rejectionCategories },
+    } });
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await screen.findByTestId("topology-counts");
+    const expected = "queue_depth: 37 messages";
+    await waitFor(() => expect(
+      container.querySelector('.react-flow__node[data-id="numeric-source"]')?.textContent,
+    ).toContain(expected));
+    await user.click(screen.getByRole("button", { name: "Semantic topology" }));
+    expect(screen.getByLabelText("Runtime metrics for node numeric-source").textContent)
+      .toContain(expected);
+    await user.click(screen.getByRole("button", {
+      name: /Select authoritative node numeric-source/,
+    }));
+    expect(screen.getByTestId("node-inspector").textContent).toContain(expected);
+  });
+
+  test("suppresses rendered active-edge motion while retaining current text", async () => {
+    const sampleTime = new Date(Date.now() - 1_000).toISOString();
+    const descriptor = {
+      target: { kind: "edge", source_node_id: "numeric-source",
+        source_port: { kind: "index", value: 0 }, target_node_id: "numeric-sink",
+        target_port: { kind: "index", value: 2 } },
+      graph_generation: 1, metric_id: "activity", scalar_type: "number",
+      scalar_encoding: "native", unit: "events/s", semantics: "gauge",
+      aggregation: "sum", availability_rule: "latest_event",
+    };
+    const metricsDocument = { success: true, data: {
+      schema_version: 1, graph_generation: 1, active_revision: null,
+      snapshot_sequence: 9, snapshot_time: sampleTime,
+      availability: { state: "available", reason: "" }, schemas: [descriptor],
+      values: [{ ...descriptor, availability: "available", reason: "", value: 4,
+        sample_time: sampleTime }],
+      diagnostics: { rejected: 0, dropped_queue_full: 0,
+        rejection_categories: rejectionCategories },
+    } };
+    const installMotion = (matches: boolean) => vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches, media: "(prefers-reduced-motion: reduce)", onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    })));
+
+    installMotion(true);
+    installApi(numericPorts, metricsDocument);
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    await waitFor(() => expect(screen.getByTestId("metrics-status").textContent)
+      .toContain("available"));
+    expect(screen.getByTestId("topology-canvas").closest(".topology-shell")
+      ?.getAttribute("data-reduced-motion"))
+      .toBe("reduce");
+    expect(document.querySelectorAll(".react-flow__edge.animated")).toHaveLength(0);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Semantic topology" }));
+    await waitFor(() => expect(screen.getByText(/activity: 4 events\/s; available/))
+      .not.toBeNull());
+  });
+
+  test("keeps metric polling single-flight and aborts it on unmount", async () => {
+    let requestCount = 0;
+    const observedSignals: AbortSignal[] = [];
+    const responder = (signal: AbortSignal | null) => {
+      requestCount += 1;
+      if (signal) observedSignals.push(signal);
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")), { once: true });
+      });
+    };
+    installApi(numericPorts, undefined, responder);
+    const rendered = render(<App />);
+    await screen.findByTestId("topology-counts");
+    await waitFor(() => expect(requestCount).toBe(1));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(requestCount).toBe(1);
+    rendered.unmount();
+    expect(observedSignals).toHaveLength(1);
+    expect(observedSignals[0].aborted).toBe(true);
+  });
+
+  test("waits for authoritative execution generation before accepting metrics", async () => {
+    let resolveExecution!: (response: Response) => void;
+    const executionResponse = new Promise<Response>((resolvePromise) => {
+      resolveExecution = resolvePromise;
+    });
+    let metricRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/execution/commands")) return phase4ReadResponse(url)!;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) return executionResponse;
+      if (url.endsWith("/api/v1/metrics")) {
+        metricRequests += 1;
+        return jsonResponse({ success: true, data: {
+          schema_version: 1,
+          graph_generation: 1,
+          active_revision: null,
+          snapshot_sequence: 1,
+          snapshot_time: new Date().toISOString(),
+          availability: { state: "unavailable", reason: "no_samples" },
+          schemas: [],
+          values: [],
+          diagnostics: { rejected: 0, dropped_queue_full: 0,
+            rejection_categories: rejectionCategories },
+        } });
+      }
+      return jsonResponse({ success: false, message: `unexpected test request ${url}` }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    expect(metricRequests).toBe(0);
+
+    resolveExecution(jsonResponse({ success: true, data: executionState }));
+    await waitFor(() => expect(metricRequests).toBe(1));
+    await waitFor(() => expect(
+      screen.getByTestId("metrics-status").textContent,
+    ).toContain("no_samples"));
+    expect(document.querySelector(".notice-region")?.textContent ?? "")
+      .not.toContain("Runtime metrics unavailable");
+  });
+
+  test("exports one authoritative envelope and pauses polling without focus or relayout", async () => {
+    const sampleTime = new Date(Date.now() - 1_000).toISOString();
+    const descriptor = {
+      target: { kind: "node", node_id: "numeric-source" },
+      graph_generation: 1,
+      metric_id: "queue_depth",
+      scalar_type: "unsigned",
+      scalar_encoding: "decimal_string",
+      unit: "messages",
+      semantics: "gauge",
+      aggregation: "sum",
+      availability_rule: "latest_event",
+    };
+    const api = installApi(numericPorts, { success: true, data: {
+      schema_version: 1,
+      graph_generation: 1,
+      active_revision: null,
+      snapshot_sequence: 10,
+      snapshot_time: sampleTime,
+      availability: { state: "available", reason: "" },
+      schemas: [descriptor],
+      values: [{ ...descriptor, availability: "available", reason: "",
+        value: "37", sample_time: sampleTime }],
+      diagnostics: { rejected: 0, dropped_queue_full: 0,
+        rejection_categories: rejectionCategories },
+    } });
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:phase4-export");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const layoutBefore = screen.getByTestId("layout-invocation-count").textContent;
+
+    const exportButton = screen.getByRole("button", { name: "Export graph snapshot" });
+    exportButton.focus();
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(exportButton);
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:phase4-export");
+    const blob = createObjectUrl.mock.calls[0][0];
+    expect(blob).toBeInstanceOf(Blob);
+    const envelope = JSON.parse(await (blob as Blob).text()) as Record<string, unknown>;
+    expect(envelope).toMatchObject({
+      artifact: "graphx.graph-export",
+      version: 1,
+      coordinator_revision: 0,
+      content_identity: "test-content-0",
+      graph: numericPorts,
+    });
+
+    const pause = screen.getByRole("button", { name: "Pause runtime updates" });
+    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+    pause.focus();
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(pause);
+    expect(screen.getByTestId("metrics-status").textContent).toContain("paused");
+    expect(screen.getByTestId("metrics-status").textContent).toContain(sampleTime);
+    expect(screen.getByLabelText("Runtime metrics for node numeric-source").textContent)
+      .toContain(`queue_depth: 37 messages; available; sampled ${sampleTime}`);
+    const metricRequests = () => api.fetchMock.mock.calls.filter(
+      ([input]) => String(input).endsWith("/api/v1/metrics"),
+    ).length;
+    const pausedCount = metricRequests();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(metricRequests()).toBe(pausedCount);
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(screen.getByTestId("layout-invocation-count").textContent)
+      .toBe(layoutBefore);
+  });
+
+  test("marks a lost browser snapshot stale and recovers metrics without relayout", async () => {
+    const sampleTime = new Date(Date.now() - 1_000).toISOString();
+    const descriptor = {
+      target: { kind: "node", node_id: "numeric-source" }, graph_generation: 1,
+      metric_id: "queue_depth", scalar_type: "unsigned",
+      scalar_encoding: "decimal_string", unit: "messages", semantics: "gauge",
+      aggregation: "sum", availability_rule: "latest_event",
+    };
+    const metricsDocument = (sequence: number, value: number) => ({ success: true, data: {
+      schema_version: 1, graph_generation: 1, active_revision: null,
+      snapshot_sequence: sequence, snapshot_time: sampleTime,
+      availability: { state: "available", reason: "" }, schemas: [descriptor],
+      values: [{ ...descriptor, availability: "available", reason: "",
+        value: String(value), sample_time: sampleTime }],
+      diagnostics: { rejected: 0, dropped_queue_full: 0,
+        rejection_categories: rejectionCategories },
+    } });
+    let metricAttempt = 0;
+    let recover = false;
+    installApi(numericPorts, undefined, async () => {
+      metricAttempt += 1;
+      if (metricAttempt === 1) return jsonResponse(metricsDocument(1, 37));
+      if (!recover) return jsonResponse({ success: false, message: "link lost" }, 503);
+      return jsonResponse(metricsDocument(2, 41));
+    });
+    vi.useFakeTimers({ now: Date.now() });
+    render(<App />);
+    await vi.waitFor(() => expect(screen.getByTestId("topology-counts")).not.toBeNull());
+    await vi.waitFor(() => expect(screen.getByLabelText(
+      "Runtime metrics for node numeric-source",
+    ).textContent).toContain("queue_depth: 37 messages"));
+    const layoutBefore = screen.getByTestId("layout-invocation-count").textContent;
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await vi.waitFor(() => expect(screen.getByRole("status").textContent)
+      .toContain("Runtime metrics unavailable: metric snapshot HTTP 503"));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_250); });
+    expect(screen.getByTestId("metrics-status").textContent).toContain("stale");
+    expect(screen.getByLabelText("Runtime metrics for node numeric-source").textContent)
+      .toContain("queue_depth: unavailable (browser_snapshot_stale)");
+    expect(document.querySelectorAll(".react-flow__edge.animated")).toHaveLength(0);
+
+    recover = true;
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await vi.waitFor(() => expect(screen.getByLabelText(
+      "Runtime metrics for node numeric-source",
+    ).textContent).toContain("queue_depth: 41 messages"));
+    expect(screen.getByTestId("metrics-status").textContent).toContain("available");
+    expect(screen.getByRole("status").textContent)
+      .toContain("Runtime metrics connection recovered.");
+    expect(screen.getByTestId("layout-invocation-count").textContent).toBe(layoutBefore);
+    vi.useRealTimers();
+  });
+
   test("keeps page entry order and lifecycle keyboard activation focus", async () => {
     const api = installApi(numericPorts);
     const user = userEvent.setup();
@@ -281,11 +627,150 @@ describe("generic dashboard components", () => {
         api.fetchMock.mock.calls.some(
           ([input, init]) =>
             init?.method === "POST" &&
-            String(input).endsWith("/api/v1/execution/configure"),
+            String(input).endsWith("/api/v1/execution/commands/configure"),
         ),
       ).toBe(true),
     );
     expect(document.activeElement).toBe(configure);
+  });
+
+  test("evicts the oldest component history row at 129 operations without moving focus", async () => {
+    let operation = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const phase4 = phase4ReadResponse(url);
+      if (phase4) return phase4;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) {
+        return jsonResponse({ success: true, data: executionState });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/configure")) {
+        operation += 1;
+        return jsonResponse({ success: true, message: `configured ${operation}`, data: {
+          command: "configure", operation_id: `history-${operation}`,
+          status: "completed", ...executionState,
+        } });
+      }
+      return jsonResponse({ success: false, message: "unexpected request" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const configure = screen.getByRole("button", { name: "Configure" });
+    configure.focus();
+    for (let index = 1; index <= 129; ++index) {
+      fireEvent.click(configure);
+      await waitFor(() => expect(document.querySelector(".command-history")?.textContent)
+        .toContain(`operation history-${index}`));
+    }
+    const history = document.querySelector(".command-history")?.textContent ?? "";
+    expect(history).toContain("Command history (128/128)");
+    expect(history).toContain("operation history-129");
+    expect(history).toContain("operation history-2");
+    expect(history).not.toContain("operation history-1;");
+    expect(document.activeElement).toBe(configure);
+  }, 20_000);
+
+  test("revokes a failed export object URL exactly once and announces failure", async () => {
+    installApi(numericPorts);
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:phase4-failed-export");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
+    vi.spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => { throw new Error("download blocked"); });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    await user.click(screen.getByRole("button", { name: "Export graph snapshot" }));
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:phase4-failed-export");
+    expect(document.querySelector(".notice-region")?.textContent)
+      .toContain("Graph export failed: download blocked");
+  });
+
+  test("renders and submits every supported bounded command argument type deliberately", async () => {
+    const descriptor = {
+      name: "bounded",
+      asynchronous: false,
+      description: "bounded typed command",
+      arguments: {
+        properties: {
+          enabled: { type: "boolean" },
+          signed: { type: "integer", minimum: -5, maximum: 5 },
+          count: { type: "unsigned", minimum: 0, maximum: 9 },
+          ratio: { type: "number", minimum: -2.5, maximum: 2.5 },
+          mode: { type: "string", enum: ["", "beta"] },
+          note: { type: "string", maxLength: 5 },
+        },
+        required: ["enabled", "signed", "count", "ratio", "mode", "note"],
+      },
+    };
+    const unsupported = {
+      name: "unsupported",
+      asynchronous: false,
+      description: "unsupported command",
+      arguments: { properties: { executable_path: { type: "string", maxLength: 8 } } },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/execution/commands")) {
+        return jsonResponse({ success: true, data: [descriptor, unsupported] });
+      }
+      if (url.endsWith("/api/v1/metrics")) return phase4ReadResponse(url)!;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) {
+        return jsonResponse({ success: true, data: executionState });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/bounded")) {
+        return jsonResponse({ success: true, data: {
+          command: "bounded", operation_id: "bounded-operation", status: "completed",
+          state: "CONFIGURED", coordinator_revision: 0, configured_revision: 0,
+          active_revision: null, graph_generation: 1, configuration_dirty: false,
+        }, message: "Bounded command completed" });
+      }
+      return jsonResponse({ success: false, message: `unexpected test request ${url}` }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const submit = screen.getByRole("button", { name: "Submit typed command" });
+
+    expect(screen.getByLabelText("mode (required)")).toHaveProperty("value", "unset");
+    expect(screen.getByLabelText("mode (required)").getAttribute("aria-required")).toBe("true");
+    await user.click(submit);
+    expect(document.querySelector(".notice-region")?.textContent)
+      .toContain("required field enabled is missing");
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+
+    await user.selectOptions(screen.getByLabelText("enabled (required)"), "false");
+    await user.type(screen.getByLabelText("signed (required)"), "-3");
+    await user.type(screen.getByLabelText("count (required)"), "4");
+    await user.type(screen.getByLabelText("ratio (required)"), "1.25");
+    await user.selectOptions(screen.getByLabelText("mode (required)"),
+      screen.getByRole("option", { name: "(empty string)" }));
+    await user.type(screen.getByLabelText("note (required)"), "abc");
+    await user.click(submit);
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) =>
+      init?.method === "POST")).toHaveLength(1));
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST")?.[1];
+    expect(JSON.parse(String(post?.body))).toEqual({
+      enabled: false, signed: -3, count: 4, ratio: 1.25, mode: "", note: "abc",
+    });
+
+    await user.clear(screen.getByLabelText("signed (required)"));
+    await user.type(screen.getByLabelText("signed (required)"), "9");
+    await user.click(submit);
+    expect(document.querySelector(".notice-region")?.textContent).toContain("maximum");
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+
+    await user.selectOptions(screen.getByLabelText("Discovered command"), "unsupported");
+    expect(submit.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Unsupported" }).hasAttribute("disabled"))
+      .toBe(true);
+    expect(screen.queryByText("Structured command arguments")).toBeNull();
   });
 
   test("retains focus across every lifecycle, mode, group collapse, and reset command", async () => {
@@ -335,6 +820,209 @@ describe("generic dashboard components", () => {
       ),
     );
     expect(document.activeElement).toBe(reset);
+  });
+
+  test("submits Stop while an accepted Run is still being followed", async () => {
+    let stopped = false;
+    const operation = (
+      command: "run" | "stop",
+      status: "accepted" | "running" | "completed" | "cancelled",
+    ) => ({
+      command,
+      operation_id: `${command}-operation`,
+      status,
+      state: stopped ? "STOPPED" : "RUNNING",
+      coordinator_revision: 0,
+      configured_revision: 0,
+      active_revision: 0,
+      graph_generation: 1,
+      configuration_dirty: false,
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const phase4 = phase4ReadResponse(url);
+      if (phase4) return phase4;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) {
+        return jsonResponse({
+          success: true,
+          data: { ...executionState, state: stopped ? "STOPPED" : "RUNNING" },
+        });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/run")) {
+        return new Response(JSON.stringify({
+          success: true,
+          data: operation("run", "accepted"),
+          message: "Run accepted",
+        }), {
+          status: 202,
+          headers: {
+            "Content-Type": "application/json",
+            Location: "/api/v1/execution/operations/run-operation",
+          },
+        });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/stop")) {
+        stopped = true;
+        return jsonResponse({
+          success: true,
+          data: operation("stop", "completed"),
+          message: "Stop completed",
+        });
+      }
+      if (url.endsWith("/api/v1/execution/operations/run-operation")) {
+        return jsonResponse({
+          success: true,
+          data: operation("run", stopped ? "cancelled" : "running"),
+        });
+      }
+      return jsonResponse({ success: false, message: `unexpected test request ${url}` }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+
+    const run = screen.getByRole("button", { name: "Run" });
+    const stop = screen.getByRole("button", { name: "Stop" });
+    await user.click(run);
+    await waitFor(() => expect(run.hasAttribute("disabled")).toBe(true));
+    expect(stop.hasAttribute("disabled")).toBe(false);
+
+    await user.click(stop);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
+      init?.method === "POST" && String(input).endsWith("/commands/stop"))).toBe(true));
+    await waitFor(() => expect(screen.getByText(/State: STOPPED/)).toBeTruthy());
+    await waitFor(() => {
+      const history = document.querySelector(".command-history")?.textContent ?? "";
+      expect(history).toContain("stop completed");
+      expect(history).toContain("run cancelled");
+    }, { timeout: 2_000 });
+  });
+
+  test("presents an expired terminal history row when operation polling returns 404", async () => {
+    const accepted = {
+      command: "run",
+      operation_id: "expired-operation",
+      status: "accepted",
+      state: "RUNNING",
+      coordinator_revision: 0,
+      configured_revision: 0,
+      active_revision: 0,
+      graph_generation: 1,
+      configuration_dirty: false,
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const phase4 = phase4ReadResponse(url);
+      if (phase4) return phase4;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) {
+        return jsonResponse({ success: true, data: { ...executionState, state: "RUNNING" } });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/run")) {
+        return new Response(JSON.stringify({ success: true, data: accepted,
+          message: "Run accepted" }), {
+          status: 202,
+          headers: { "Content-Type": "application/json",
+            Location: "/api/v1/execution/operations/expired-operation" },
+        });
+      }
+      if (url.endsWith("/api/v1/execution/operations/expired-operation")) {
+        return jsonResponse({ success: false, message: "unknown" }, 404);
+      }
+      return jsonResponse({ success: false, message: `unexpected test request ${url}` }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const run = screen.getByRole("button", { name: "Run" });
+    run.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => {
+      const history = document.querySelector(".command-history")?.textContent ?? "";
+      expect(history).toContain("Command history (1/128)");
+      expect(history).toContain("run expired");
+      expect(history).toContain("Operation expired or is unknown.");
+    }, { timeout: 2_000 });
+    expect(document.activeElement).toBe(run);
+  });
+
+  test.each([
+    [409, "execution transition conflicts with current state"],
+    [503, "execution capability unavailable"],
+  ])("reports command submission HTTP %i without a false accepted operation",
+    async (status, message) => {
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const phase4 = phase4ReadResponse(url);
+        if (phase4) return phase4;
+        if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+        if (url.endsWith("/api/v1/execution/state")) {
+          return jsonResponse({ success: true, data: executionState });
+        }
+        if (init?.method === "POST" && url.endsWith("/commands/configure")) {
+          return jsonResponse({ success: false, message }, status);
+        }
+        return jsonResponse({ success: false, message: `unexpected test request ${url}` }, 404);
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByTestId("topology-counts");
+      const configure = screen.getByRole("button", { name: "Configure" });
+      configure.focus();
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(screen.getByRole("status").textContent)
+        .toContain(`Command configure failed: ${message}`));
+      expect(document.querySelector(".command-history")?.textContent)
+        .toContain("Command history (0/128)");
+      expect(configure.hasAttribute("disabled")).toBe(false);
+      expect(document.activeElement).toBe(configure);
+    });
+
+  test("turns a command polling HTTP 503 into bounded failed history", async () => {
+    const accepted = {
+      command: "run", operation_id: "unavailable-operation", status: "accepted",
+      state: "RUNNING", coordinator_revision: 0, configured_revision: 0,
+      active_revision: 0, graph_generation: 1, configuration_dirty: false,
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const phase4 = phase4ReadResponse(url);
+      if (phase4) return phase4;
+      if (url.endsWith("/api/v1/graph")) return graphResponse(numericPorts);
+      if (url.endsWith("/api/v1/execution/state")) {
+        return jsonResponse({ success: true, data: executionState });
+      }
+      if (init?.method === "POST" && url.endsWith("/commands/run")) {
+        return new Response(JSON.stringify({ success: true, data: accepted,
+          message: "Run accepted" }), { status: 202, headers: {
+          "Content-Type": "application/json",
+          Location: "/api/v1/execution/operations/unavailable-operation",
+        } });
+      }
+      if (url.endsWith("/api/v1/execution/operations/unavailable-operation")) {
+        return jsonResponse({ success: false, message: "operation service unavailable" }, 503);
+      }
+      return jsonResponse({ success: false, message: "unexpected request" }, 404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByTestId("topology-counts");
+    const run = screen.getByRole("button", { name: "Run" });
+    run.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => {
+      const history = document.querySelector(".command-history")?.textContent ?? "";
+      expect(history).toContain("Command history (1/128)");
+      expect(history).toContain("run failed");
+      expect(history).toContain("Operation follow-up failed: operation service unavailable");
+    }, { timeout: 2_000 });
+    expect(run.hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(run);
   });
 
   test("traverses the complete active view and inspector in forward and reverse DOM order without a trap", async () => {
@@ -650,7 +1338,7 @@ describe("generic dashboard components", () => {
     );
     render(<App />);
     expect(screen.getByText("Loading authoritative topology…")).not.toBeNull();
-    resolveGraph(jsonResponse({ success: true, data: empty }));
+    resolveGraph(graphResponse(empty));
     expect(await screen.findByText("Empty graph")).not.toBeNull();
 
     cleanup();
@@ -758,6 +1446,8 @@ describe("generic dashboard components", () => {
     const allowed = new Set([
       "GET /api/v1/graph",
       "GET /api/v1/execution/state",
+      "GET /api/v1/execution/commands",
+      "GET /api/v1/metrics",
       "PATCH /api/v1/nodes/numeric-source",
     ]);
     expect(requests.every((request) => allowed.has(request))).toBe(true);

@@ -29,6 +29,9 @@
 #pragma once
 
 #include "metrics/MetricsEvent.hpp"
+#include "metrics/NodeMetricsSchema.hpp"
+#include <cstdint>
+#include <vector>
 
 namespace app::metrics  {
 
@@ -67,6 +70,18 @@ public:
  * @param event Parameter for on metrics event.
  */
     virtual void OnMetricsEvent(const app::metrics::MetricsEvent& event) = 0;
+
+    /** Generation invalidation is delivered before values from the next graph
+     * can be accepted. Existing subscribers need not retain generation state. */
+    virtual void OnMetricsGenerationReset(std::uint64_t) {}
+
+    /** Control-plane notification delivered after an authoritative bounded
+     * schema set is installed. Implementations may prepare admission state
+     * here so OnMetricsEvent remains bounded and never re-enters capability
+     * APIs. */
+    virtual void OnMetricsSchemasChanged(
+        std::uint64_t,
+        const std::vector<app::metrics::NodeMetricsSchema>&) {}
 };
 
 }  // namespace app::metrics

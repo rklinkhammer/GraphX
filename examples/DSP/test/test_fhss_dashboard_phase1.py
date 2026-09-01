@@ -88,7 +88,11 @@ class Phase1DashboardTest(unittest.TestCase):
         self.assertIn("127.0.0.1:8080:8080", compose)
         self.assertIn("--dashboard-host 127.0.0.1", runner)
         self.assertIn("socat", runner)
-        self.assertIn("git clone", readme)
+        # This image belongs to the retired FHSS-specific dashboard. Fresh
+        # clone/build instructions now live in the generic dashboard operator
+        # documentation; the legacy README must not claim current support.
+        self.assertIn("does **not** package or launch the current generic", readme)
+        self.assertIn("repository root `README.md`", readme)
         self.assertNotIn("/private/tmp", dockerfile + compose + runner + readme)
 
 

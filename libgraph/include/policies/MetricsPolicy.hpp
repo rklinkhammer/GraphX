@@ -30,6 +30,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include <log4cxx/logger.h>
 #include "core/ActiveQueue.hpp"
 #include "metrics/MetricsEvent.hpp"
@@ -94,13 +95,25 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
          */
         std::lock_guard<std::mutex> lock(publish_mutex_);
         if (on_publish_async_) {
+            if (entry_hook_for_testing_) entry_hook_for_testing_();
             return on_publish_async_(event);
         }
         return false;
     }
+
+    void SetEntryHookForTesting(std::function<void()> hook) {
+        std::lock_guard<std::mutex> lock(publish_mutex_);
+        entry_hook_for_testing_ = std::move(hook);
+    }
+
+    void Disable() noexcept {
+        std::lock_guard<std::mutex> lock(publish_mutex_);
+        on_publish_async_ = nullptr;
+    }
     
     /// @brief Callback function for publishing metrics events
     std::function<bool(const app::metrics::MetricsEvent&)> on_publish_async_;
+    std::function<void()> entry_hook_for_testing_;
     
     /// @brief Mutex for thread-safe concurrent PublishAsync calls
     mutable std::mutex publish_mutex_;
@@ -160,6 +173,9 @@ struct MetricsCapabilityCallback : public graph::IMetricsCallback {
  */
 class MetricsPolicy : public graph::IExecutionPolicy {
 public:
+    static constexpr std::size_t MetricsQueueCapacity() noexcept {
+        return kMetricsQueueCapacity;
+    }
     /**
      * @brief Construct a metrics policy with logging
      */
@@ -177,7 +193,7 @@ public:
     /**
      * @brief Virtual destructor for proper cleanup
      */
-    virtual ~MetricsPolicy() = default;
+    ~MetricsPolicy() override { DetachMetricsSources(); }
 
     /**
      * @brief Initialize metrics infrastructure during graph setup
@@ -217,9 +233,11 @@ public:
         }
         metrics_event_queue_.Clear();
         metrics_event_queue_.Enable();
+        DetachMetricsSources();
         metrics_node_callbacks_.clear();
         node_metrics_schemas_.clear();
-        metrics_capability_->ResetGeneration();
+        metrics_capability_->ResetGeneration(
+            metrics_capability_->GetGraphGeneration());
         /**
          * @brief Performs the Init Metrics Sources lifecycle step.
          *
@@ -277,20 +295,6 @@ public:
             app::metrics::MetricsEvent event;
             while (metrics_event_queue_.Dequeue(event))
             {
-                LOG4CXX_TRACE(metrics_logger, "MetricsPolicy: Publishing metrics event from Node '" 
-                    << event.source << "' "
-                    << "of type '" << event.event_type << "' with " << event.data.size() << " fields:");
-                for (const auto &[field, value] : event.data)
-                {
-                    /**
-                     * @brief Executes the Log4 Cxx Trace operation.
-                     *
-                     * @details Documents the method contract for Doxygen readers. Callers should preserve the surrounding GraphX lifecycle, ownership, and typed-message invariants when invoking or overriding this method.
-                     * @param metrics_logger Input or configuration value consumed by the method.
-                     * @return Method-specific result, status, or produced value when the signature provides one.
-                     */
-                    LOG4CXX_TRACE(metrics_logger, "  Field: " << field << " = " << value);
-                }
                 metrics_capability_->InvokeSubscribers(event);
             }
         };
@@ -333,6 +337,9 @@ public:
         if (!metrics_capability_) {
             LOG4CXX_TRACE(metrics_logger,
                           "MetricsPolicy::OnJoin() skipped drain - no MetricsCapability registered");
+            DetachMetricsSources();
+            metrics_node_callbacks_.clear();
+            node_metrics_schemas_.clear();
             return;
         }
         
@@ -349,8 +356,6 @@ public:
         app::metrics::MetricsEvent event;
         size_t drained_count = 0;
         while (metrics_event_queue_.DequeueNonBlocking(event)) {
-            LOG4CXX_TRACE(metrics_logger, "MetricsPolicy: Draining metrics event from Node '" 
-                << event.source << "' of type '" << event.event_type << "'");
             metrics_capability_->InvokeSubscribers(event);
             ++drained_count;
         }
@@ -364,6 +369,12 @@ public:
              */
             LOG4CXX_TRACE(metrics_logger, "MetricsPolicy::OnJoin() - drained " << drained_count << " remaining events");
         }
+        // GraphExecutor joins every node before policy OnJoin. Detaching here
+        // therefore cannot race a node worker, and retained nodes cannot keep
+        // a raw callback into this policy after teardown.
+        DetachMetricsSources();
+        metrics_node_callbacks_.clear();
+        node_metrics_schemas_.clear();
     }   
 
     /**
@@ -385,6 +396,17 @@ public:
 
 
 private:
+    void DetachMetricsSources() noexcept {
+        for (const auto& [_, callback] : metrics_node_callbacks_) {
+            if (callback) callback->Disable();
+        }
+        for (const auto& source : metrics_sources_) {
+            if (source) {
+                static_cast<void>(source->SetMetricsCallbackShared(nullptr));
+            }
+        }
+        metrics_sources_.clear();
+    }
 /**
  * @brief Init metrics sources.
  * @param context Parameter for init metrics sources.
@@ -392,8 +414,11 @@ private:
     void InitMetricsSources(capabilities::GraphCapability& context);
 
     std::jthread metrics_thread_;
-    core::ActiveQueue<app::metrics::MetricsEvent> metrics_event_queue_;
+    static constexpr std::size_t kMetricsQueueCapacity = 4096U;
+    core::ActiveQueue<app::metrics::MetricsEvent> metrics_event_queue_{
+        kMetricsQueueCapacity, false};
     std::shared_ptr<capabilities::MetricsCapability> metrics_capability_;
+    std::vector<std::shared_ptr<graph::IMetricsCallbackProvider>> metrics_sources_;
     std::unordered_map<std::string, std::shared_ptr<MetricsCapabilityCallback>> metrics_node_callbacks_;
     std::unordered_map<std::string, app::metrics::NodeMetricsSchema> node_metrics_schemas_;
 

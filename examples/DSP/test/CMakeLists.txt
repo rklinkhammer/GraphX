@@ -3,8 +3,20 @@ find_package(Threads REQUIRED)
 find_package(log4cxx REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-set(GRAPHX_DASHBOARD_CONTRACT_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH
-    "Python interpreter provisioned with dashboard requirements-contracts.lock")
+if(NOT DEFINED GRAPHX_DASHBOARD_CONTRACT_PYTHON)
+    set(GRAPHX_DASHBOARD_CONTRACT_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH
+        "Python interpreter with the GraphX dashboard contract dependencies")
+elseif(GRAPHX_DASHBOARD_CONTRACT_PYTHON STREQUAL "")
+    unset(GRAPHX_DASHBOARD_CONTRACT_PYTHON CACHE)
+    set(GRAPHX_DASHBOARD_CONTRACT_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH
+        "Python interpreter with the GraphX dashboard contract dependencies")
+else()
+    set(GRAPHX_DASHBOARD_CONTRACT_PYTHON
+        "${GRAPHX_DASHBOARD_CONTRACT_PYTHON}" CACHE FILEPATH
+        "Python interpreter with the GraphX dashboard contract dependencies")
+endif()
+message(STATUS
+    "GraphX dashboard contract Python: ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}")
 
 set(GRAPHX_LINK_GROUP_BEGIN "")
 set(GRAPHX_LINK_GROUP_END "")
@@ -112,12 +124,12 @@ add_test(NAME dsp_example_unit_discovery
 set_tests_properties(dsp_example_unit_discovery PROPERTIES
     LABELS "dsp;fhss;dashboard;discovery;ci-safe;host-any")
 
+add_test(NAME fhss_dashboard_api_contracts
+    COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
+            ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/api/validate_contracts.py)
+set_tests_properties(fhss_dashboard_api_contracts PROPERTIES
+    LABELS "dsp;fhss;dashboard;contracts;ci-safe;host-any")
 if(GRAPHX_BUILD_WEB_DASHBOARD)
-    add_test(NAME fhss_dashboard_api_contracts
-        COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
-                ${CMAKE_SOURCE_DIR}/examples/DSP/dashboard/api/validate_contracts.py)
-    set_tests_properties(fhss_dashboard_api_contracts PROPERTIES
-        LABELS "dsp;fhss;dashboard;contracts;ci-safe;host-any")
     add_test(NAME fhss_dashboard_phase4_evidence_smoke
         COMMAND ${GRAPHX_DASHBOARD_CONTRACT_PYTHON}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_dashboard_phase4_operator.py)
@@ -307,8 +319,13 @@ add_test(NAME fhss_dashboard_off_build
     COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DPARENT_BUILD_DIR=${CMAKE_BINARY_DIR}
         -P ${CMAKE_SOURCE_DIR}/cmake/ValidateDashboardOffBuild.cmake)
+set(FHSS_DASHBOARD_OFF_BUILD_TIMEOUT 180)
+if(ENABLE_ASAN_UBSAN)
+    set(FHSS_DASHBOARD_OFF_BUILD_TIMEOUT 600)
+endif()
 set_tests_properties(fhss_dashboard_off_build PROPERTIES
-    LABELS "dsp;fhss;dashboard;off-build;ci-safe;host-any" TIMEOUT 180 RUN_SERIAL TRUE)
+    LABELS "dsp;fhss;dashboard;off-build;ci-safe;host-any"
+    TIMEOUT ${FHSS_DASHBOARD_OFF_BUILD_TIMEOUT} RUN_SERIAL TRUE)
 
 add_test(
     NAME fhss_fixture_topology_generator
@@ -376,11 +393,15 @@ add_test(
     COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_fhss_phase5_qualification.py
 )
+set(FHSS_PHASE5_QUALIFICATION_TIMEOUT 30)
+if(ENABLE_ASAN_UBSAN)
+    set(FHSS_PHASE5_QUALIFICATION_TIMEOUT 120)
+endif()
 set_tests_properties(fhss_phase5_qualification PROPERTIES
     LABELS "dsp;fhss;phase5;qualification;ci-safe;host-any"
     ENVIRONMENT
         "GRAPHX_TEST_BUILD_DIR=${CMAKE_BINARY_DIR};GRAPHX_TEST_WORK_DIR=${CMAKE_BINARY_DIR}"
-    TIMEOUT 30)
+    TIMEOUT ${FHSS_PHASE5_QUALIFICATION_TIMEOUT})
 
 if(GRAPHX_ENABLE_EXTENDED_VALIDATION)
     add_test(

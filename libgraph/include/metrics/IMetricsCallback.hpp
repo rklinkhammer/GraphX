@@ -35,6 +35,8 @@
 #include <chrono>
 #include <string>
 #include <map>
+#include <memory>
+#include <mutex>
 
 
 namespace graph {
@@ -150,6 +152,24 @@ public:
  */
     virtual bool SetMetricsCallback(IMetricsCallback* callback) noexcept = 0;
 
+    bool SetMetricsCallbackShared(
+        std::shared_ptr<IMetricsCallback> callback) noexcept {
+        std::lock_guard<std::mutex> lock(shared_metrics_callback_mutex_);
+        if (callback) {
+            shared_metrics_callback_ = callback;
+            return SetMetricsCallback(callback.get());
+        }
+        const bool result = SetMetricsCallback(nullptr);
+        shared_metrics_callback_.reset();
+        return result;
+    }
+
+    [[nodiscard]] std::shared_ptr<IMetricsCallback>
+    AcquireMetricsCallback() const noexcept {
+        std::lock_guard<std::mutex> lock(shared_metrics_callback_mutex_);
+        return shared_metrics_callback_;
+    }
+
     /**
      * @brief Check if a metrics callback is installed
      *
@@ -186,7 +206,9 @@ public:
  */
     virtual app::metrics::NodeMetricsSchema GetNodeMetricsSchema() const noexcept = 0;
 
+private:
+    mutable std::mutex shared_metrics_callback_mutex_;
+    std::shared_ptr<IMetricsCallback> shared_metrics_callback_;
 };
 
 }  // namespace graph
-

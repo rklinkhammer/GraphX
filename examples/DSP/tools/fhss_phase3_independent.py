@@ -16,6 +16,8 @@ import json
 import math
 import os
 import random
+import shlex
+import shutil
 import struct
 import subprocess
 import sys
@@ -1113,6 +1115,76 @@ def scenario_from_profile(profile: dict[str, Any], point: dict[str, Any], seed: 
     }
 
 
+def receiver_compile_environment(
+        compile_commands: Path | None) -> tuple[str, str | None]:
+    """Return C++ mode and compiler from the exact FHSS receiver entry."""
+    if compile_commands is None:
+        return "unverified", None
+    try:
+        entries = json.loads(compile_commands.read_text())
+    except (OSError, json.JSONDecodeError):
+        return "unverified", None
+    if not isinstance(entries, list):
+        return "unverified", None
+    accepted = {"-std=c++26", "-std=gnu++26",
+                "-std=c++2c", "-std=gnu++2c"}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        source = entry.get("file")
+        if not isinstance(source, str) or Path(source).name != "fhss_demo.cpp":
+            continue
+        arguments = entry.get("arguments")
+        if isinstance(arguments, list) and all(isinstance(arg, str)
+                                               for arg in arguments):
+            tokens = arguments
+        elif isinstance(entry.get("command"), str):
+            try:
+                tokens = shlex.split(entry["command"])
+            except ValueError:
+                continue
+        else:
+            continue
+        compiler_index = 0
+        if tokens and Path(tokens[0]).name in {"ccache", "sccache"}:
+            compiler_index = 1
+        if len(tokens) <= compiler_index:
+            continue
+        compiler_token = tokens[compiler_index]
+        compiler_path = Path(compiler_token)
+        if compiler_path.is_absolute():
+            resolved_compiler = str(compiler_path)
+        elif "/" in compiler_token:
+            directory = entry.get("directory")
+            if not isinstance(directory, str):
+                resolved_compiler = None
+            else:
+                resolved_compiler = str(
+                    (Path(directory) / compiler_path).resolve())
+        else:
+            resolved_compiler = shutil.which(compiler_token)
+        mode = "c++26" if any(token in accepted for token in tokens) \
+            else "unverified"
+        return mode, resolved_compiler
+    return "unverified", None
+
+
+def receiver_cxx_mode(compile_commands: Path | None) -> str:
+    return receiver_compile_environment(compile_commands)[0]
+
+
+def receiver_compiler_version(compiler: str | None) -> str:
+    if compiler is None:
+        return "unavailable"
+    try:
+        completed = subprocess.run(
+            [compiler, "--version"], text=True, capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return "unavailable"
+    return completed.stdout.splitlines()[0] \
+        if completed.returncode == 0 and completed.stdout else "unavailable"
+
+
 def receiver_environment(executable: Path, base_config: Path,
                          plugins: Path) -> dict[str, Any]:
     plugin_files = sorted(path for path in plugins.rglob("*") if path.is_file())
@@ -1121,9 +1193,7 @@ def receiver_environment(executable: Path, base_config: Path,
     compile_commands = next((parent / "compile_commands.json"
                              for parent in executable.parents
                              if (parent / "compile_commands.json").is_file()), None)
-    compile_text = compile_commands.read_text() if compile_commands else ""
-    compiler = subprocess.run(["c++", "--version"], text=True, capture_output=True,
-                              timeout=10)
+    cxx_mode, compiler = receiver_compile_environment(compile_commands)
     git_head = subprocess.run(["git", "rev-parse", "HEAD"], text=True,
                               capture_output=True, timeout=10)
     git_status = subprocess.run(["git", "status", "--porcelain=v1"], text=True,
@@ -1132,9 +1202,9 @@ def receiver_environment(executable: Path, base_config: Path,
             "receiver_graph_sha256": digest_file(base_config),
             "plugin_manifest": plugin_manifest,
             "plugin_set_sha256": digest_json(plugin_manifest),
-            "compiler_version": compiler.stdout.splitlines()[0] if compiler.returncode == 0 else "unavailable",
+            "compiler_version": receiver_compiler_version(compiler),
             "compile_commands_sha256": digest_file(compile_commands) if compile_commands else None,
-            "cxx_mode": "c++26" if "-std=c++2c" in compile_text or "-std=gnu++2c" in compile_text else "unverified",
+            "cxx_mode": cxx_mode,
             "git_head": git_head.stdout.strip() if git_head.returncode == 0 else "unavailable",
             "git_status_sha256": digest_bytes(git_status.stdout.encode()),
             "git_dirty": bool(git_status.stdout),

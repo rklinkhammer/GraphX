@@ -11,6 +11,7 @@
     "test:browser": "node test/browser-dashboard.mjs",
     "test:browser:phase2": "node test/browser-hierarchy.mjs",
     "test:browser:phase3": "node test/browser-phase3.mjs",
+    "test:browser:phase4": "node test/browser-phase4.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -29,6 +29,10 @@ interface SemanticTopologyProps {
   expandedGroupIds: ReadonlySet<string>;
   collapsedGroupIds: ReadonlySet<string>;
   canvasFallbackActive: boolean;
+  runtimeTextByNode?: ReadonlyMap<string, string[]>;
+  runtimeTextByEdge?: ReadonlyMap<string, string[]>;
+  runtimeTextByGroup?: ReadonlyMap<string, string[]>;
+  runtimeTextByBundle?: ReadonlyMap<string, string[]>;
   onSearch: (value: string) => void;
   onTypeFilter: (value: string) => void;
   onExpandedGroup: (groupId: string, expanded: boolean) => void;
@@ -59,11 +63,13 @@ function NodeRecord({
   selected,
   onSelect,
   onEdit,
+  runtimeText,
 }: {
   record: SemanticNodeRecord;
   selected: boolean;
   onSelect: () => void;
   onEdit: (invoker: HTMLElement) => void;
+  runtimeText: string[];
 }) {
   const node = record.node;
   const groupPath =
@@ -103,6 +109,9 @@ function NodeRecord({
         </div>
       </dl>
       <WarningList warnings={record.warnings} />
+      <div className="semantic-runtime" aria-label={`Runtime metrics for node ${node.id}`}>
+        {runtimeText.length === 0 ? "Runtime metrics unavailable" : runtimeText.slice(0, 8).join("; ")}
+      </div>
       <button
         type="button"
         className="semantic-edit"
@@ -127,6 +136,10 @@ export function SemanticTopology({
   expandedGroupIds,
   collapsedGroupIds,
   canvasFallbackActive,
+  runtimeTextByNode = new Map(),
+  runtimeTextByEdge = new Map(),
+  runtimeTextByGroup = new Map(),
+  runtimeTextByBundle = new Map(),
   onSearch,
   onTypeFilter,
   onExpandedGroup,
@@ -200,6 +213,7 @@ export function SemanticTopology({
             onAuthoritativeSelect({ kind: "node", id: nodeId });
           }}
           onEdit={(invoker) => onEdit(nodeId, invoker)}
+          runtimeText={runtimeTextByNode.get(nodeId) ?? []}
         />
       </li>
     );
@@ -255,6 +269,10 @@ export function SemanticTopology({
             Canvas state: {canvasState}.
             {containsSelection ? " Contains the authoritative selection." : ""}
           </p>
+          <div className="semantic-runtime" aria-label={`Runtime metrics for group ${group.id}`}>
+            {(runtimeTextByGroup.get(group.id) ?? []).slice(0, 8).join("; ") ||
+              "Runtime metrics unavailable"}
+          </div>
           <div className="semantic-group-actions">
             <button
               type="button"
@@ -429,7 +447,13 @@ export function SemanticTopology({
                     <td>{formatPort(edge.sourcePort)}</td>
                     <td className="identity">{edge.targetNodeId}</td>
                     <td>{formatPort(edge.targetPort)}</td>
-                    <td>{selected ? "Selected authoritative edge" : "Not selected"}</td>
+                    <td>
+                      {selected ? "Selected authoritative edge" : "Not selected"}
+                      <div className="semantic-runtime">
+                        {(runtimeTextByEdge.get(edge.id) ?? []).slice(0, 8).join("; ") ||
+                          "Runtime metrics unavailable"}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -440,6 +464,21 @@ export function SemanticTopology({
           </table>
         </div>
       </section>
+
+      {projection.bundles.length > 0 && (
+        <section aria-labelledby="semantic-bundles-heading">
+          <h3 id="semantic-bundles-heading">Visible presentation bundles</h3>
+          <ul className="semantic-warnings">
+            {projection.bundles.map((bundle) => (
+              <li key={bundle.id}>
+                <span className="identity">{bundle.id}</span>: {bundle.memberEdgeIds.length} exact member edges.
+                {" "}{(runtimeTextByBundle.get(bundle.id) ?? []).slice(0, 8).join("; ") ||
+                  "Runtime metrics unavailable"}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }

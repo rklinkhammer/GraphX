@@ -103,6 +103,9 @@ FHSSGraphRuntimeOwner::Rebuild(std::uint64_t generation,
     if (!candidate)
       return {500, "executor_construction_failed",
               "failed to construct receiver executor"};
+    const auto initialized = candidate->Init();
+    if (!initialized.success)
+      return {500, "executor_initialization_failed", initialized.message};
     auto manager = candidate->GetGraphManager();
     if (!manager)
       return {500, "graph_manager_missing",
@@ -157,6 +160,9 @@ FHSSGraphRuntimeOwner::Start(std::uint64_t generation,
     if (!candidate)
       return {500, "executor_construction_failed",
               "failed to reconstruct receiver executor for restart"};
+    const auto initialized = candidate->Init();
+    if (!initialized.success)
+      return {500, "executor_initialization_failed", initialized.message};
     auto manager = candidate->GetGraphManager();
     if (!manager)
       return {500, "graph_manager_missing",

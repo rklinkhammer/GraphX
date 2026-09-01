@@ -49,7 +49,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -71,6 +72,7 @@ button:hover:not(:disabled) {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
+select:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
@@ -127,6 +129,57 @@ main {
   border: 1px solid #ccd4e3;
   border-radius: 0.7rem;
   background: #fff;
+}
+
+.runtime-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #ccd4e3;
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.runtime-controls h2 {
+  margin: 0 0 0.55rem;
+  font-size: 1.05rem;
+}
+
+.runtime-controls label,
+.runtime-controls select,
+.runtime-controls button {
+  margin-right: 0.5rem;
+}
+
+.runtime-controls select {
+  min-height: 2.5rem;
+  max-width: 100%;
+  padding: 0.45rem;
+  border: 1px solid var(--control-border-color);
+  border-radius: 0.45rem;
+  background: #fff;
+}
+
+.command-history {
+  grid-column: 1 / -1;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.runtime-values,
+.runtime-inspector ul {
+  margin: 0.45rem 0;
+  padding-left: 1.25rem;
+  color: #263b66;
+  font-size: 0.78rem;
+}
+
+.semantic-runtime {
+  margin-top: 0.35rem;
+  color: #34496f;
+  font-size: 0.85rem;
 }
 
 .execution-panel h2 {
@@ -867,6 +920,14 @@ footer {
 
   .topology-canvas {
     min-height: 380px;
+  }
+
+  .runtime-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .command-history {
+    grid-column: 1;
   }
 }
 

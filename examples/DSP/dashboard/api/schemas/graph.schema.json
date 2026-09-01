@@ -75,6 +75,7 @@
         "canonical_fhss_graph":{"type":"boolean"},
         "reference_only":{"type":"boolean"},
         "resolver_diagnostics":{"type":"boolean"},
+        "presentation":{"$ref":"#/$defs/receiverValue"},
         "active_frequency_indices":{"$ref":"#/$defs/activeFrequencies"},
         "preamble_pulses":{"$ref":"#/$defs/preamblePulses"},
         "dashboard_derived":{"$ref":"#/$defs/dashboardDerived"},

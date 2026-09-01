@@ -53,6 +53,11 @@ endif()
 
 add_test(NAME libdsp_unit COMMAND test_libdsp_unit)
 set_tests_properties(libdsp_unit PROPERTIES LABELS "dsp;fhss;unit;ci-safe;host-any")
+if(ENABLE_ASAN_UBSAN)
+    # The validation-sized 188876-sample/64-lane FHSS case is intentionally
+    # unchanged, but requires a longer deadline under Debug ASan/UBSan.
+    set_tests_properties(libdsp_unit PROPERTIES TIMEOUT 3600)
+endif()
 set(LIBDSP_DISCOVERY_EXPECTED_SUITES
     FHSSGraphXExecutorTest
     FHSSGraphXNodeTest

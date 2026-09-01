@@ -6,7 +6,13 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
+import signal
+import subprocess
+import sys
 import tempfile
+import time
+from unittest import mock
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[3]
@@ -68,6 +74,209 @@ def main():
 
     assert operator_module.firefox_bidi_message_too_big(OversizeClose())
     assert not operator_module.firefox_bidi_message_too_big(NormalClose())
+
+    with tempfile.TemporaryDirectory(
+            prefix="graphx-firefox-group-test-") as group_temp:
+        group_root = Path(group_temp)
+        profile = group_root / "profile"
+        profile.mkdir()
+        child_pid_path = group_root / "child.pid"
+        stub = (
+            "import os,signal,subprocess,sys,time;"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN);"
+            "child=subprocess.Popen([sys.executable,'-c',"
+            "'import signal,time; signal.signal(signal.SIGTERM, "
+            "signal.SIG_IGN); time.sleep(300)']);"
+            "open(sys.argv[1],'w').write(str(child.pid));"
+            "time.sleep(300)")
+        process = subprocess.Popen(
+            [sys.executable, "-c", stub, str(child_pid_path)],
+            start_new_session=True)
+        pgid = process.pid
+        try:
+            deadline = time.monotonic() + 5
+            while (not child_pid_path.is_file() and
+                   time.monotonic() < deadline):
+                time.sleep(0.01)
+            assert child_pid_path.is_file()
+            child_pid = int(child_pid_path.read_text())
+            assert os.getpgid(child_pid) == pgid
+            operator_module.stop_firefox_process_group(
+                process, pgid, profile, start_new_session=True,
+                grace_timeout=0,
+                term_timeout=0.1, kill_timeout=5)
+            assert process.poll() is not None
+            assert not operator_module.firefox_process_group_alive(pgid)
+        finally:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+
+    class NeverExits:
+        pid = 424242
+
+        @staticmethod
+        def poll():
+            return None
+
+        @staticmethod
+        def wait(timeout):
+            raise subprocess.TimeoutExpired("firefox-stub", timeout)
+
+    with (mock.patch.object(operator_module.os, "killpg") as killpg,
+          mock.patch.object(operator_module.os, "getpgid",
+                            return_value=424242)):
+        try:
+            operator_module.stop_firefox_process_group(
+                NeverExits(), 424242, Path("diagnostic-profile"),
+                start_new_session=True,
+                grace_timeout=0, term_timeout=0, kill_timeout=0,
+                platform_name="linux")
+            raise AssertionError("live Firefox group cleanup failure was hidden")
+        except RuntimeError as error:
+            assert "pgid=424242" in str(error)
+            assert "profile=diagnostic-profile" in str(error)
+        assert killpg.call_args_list[-1] == mock.call(424242, 0)
+
+    class DarwinProcess:
+        pid = 434343
+        killed = False
+
+        def poll(self):
+            return 0 if self.killed else None
+
+        def wait(self, timeout):
+            return 0
+
+    darwin_process = DarwinProcess()
+    darwin_signals = []
+
+    def darwin_killpg(pgid, group_signal):
+        assert pgid == darwin_process.pid
+        darwin_signals.append(group_signal)
+        if group_signal == signal.SIGKILL:
+            darwin_process.killed = True
+        elif group_signal == 0 and darwin_process.killed:
+            raise ProcessLookupError
+
+    with (mock.patch.object(operator_module.os, "killpg",
+                            side_effect=darwin_killpg),
+          mock.patch.object(operator_module.os, "getpgid",
+                            return_value=darwin_process.pid)):
+        operator_module.stop_firefox_process_group(
+            darwin_process, darwin_process.pid, Path("darwin-profile"),
+            start_new_session=True,
+            grace_timeout=0, kill_timeout=0, platform_name="darwin")
+    assert signal.SIGTERM not in darwin_signals
+    assert signal.SIGKILL in darwin_signals
+
+    class DarwinRootFallback:
+        pid = 444444
+
+        def __init__(self, root_kill_fails=False):
+            self.killed = False
+            self.waited = False
+            self.root_kill_fails = root_kill_fails
+
+        def poll(self):
+            return 0 if self.killed else None
+
+        def kill(self):
+            if self.root_kill_fails:
+                raise PermissionError("root EPERM")
+            self.killed = True
+
+        def wait(self, timeout):
+            self.waited = True
+            return 0
+
+    fallback = DarwinRootFallback()
+
+    def fallback_killpg(pgid, group_signal):
+        assert pgid == fallback.pid
+        if group_signal == signal.SIGKILL:
+            raise PermissionError("group EPERM")
+        if group_signal == 0 and fallback.killed:
+            raise ProcessLookupError
+
+    with (mock.patch.object(operator_module.os, "killpg",
+                            side_effect=fallback_killpg),
+          mock.patch.object(operator_module.os, "getpgid",
+                            return_value=fallback.pid)):
+        operator_module.stop_firefox_process_group(
+            fallback, fallback.pid, Path("fallback-profile"),
+            start_new_session=True, grace_timeout=0, kill_timeout=0,
+            platform_name="darwin")
+    assert fallback.killed and fallback.waited
+
+    failed_fallback = DarwinRootFallback(root_kill_fails=True)
+
+    def failed_fallback_killpg(pgid, group_signal):
+        assert pgid == failed_fallback.pid
+        if group_signal == signal.SIGKILL:
+            raise PermissionError("group EPERM")
+
+    with tempfile.TemporaryDirectory(
+            prefix="graphx-firefox-root-fallback-") as fallback_temp:
+        fallback_profile = Path(fallback_temp) / "profile"
+        fallback_profile.mkdir()
+        with (mock.patch.object(operator_module.os, "killpg",
+                                side_effect=failed_fallback_killpg),
+              mock.patch.object(operator_module.os, "getpgid",
+                                return_value=failed_fallback.pid)):
+            try:
+                operator_module.stop_firefox_process_group(
+                    failed_fallback, failed_fallback.pid, fallback_profile,
+                    start_new_session=True, grace_timeout=0, kill_timeout=0,
+                    platform_name="darwin")
+                raise AssertionError("dual Firefox cleanup failure was hidden")
+            except RuntimeError as error:
+                assert "group and root kills both failed" in str(error)
+                assert "group EPERM" in str(error)
+                assert "root EPERM" in str(error)
+        assert fallback_profile.is_dir()
+
+    class FakeSocket:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    with tempfile.TemporaryDirectory(
+            prefix="graphx-firefox-failure-evidence-") as evidence_temp:
+        evidence_root = Path(evidence_temp)
+        retained_profile = evidence_root / "profile"
+        retained_profile.mkdir()
+        retained_log = (evidence_root / "firefox.log").open("w")
+        retained_socket = FakeSocket()
+        session = object.__new__(operator_module.FirefoxBidiSession)
+        session._socket = retained_socket
+        session._process = NeverExits()
+        session._pgid = 424242
+        session._profile = retained_profile
+        session._log = retained_log
+        try:
+            with (mock.patch.object(
+                    operator_module.FirefoxBidiSession, "call",
+                    side_effect=RuntimeError("transport closed")),
+                  mock.patch.object(
+                    operator_module, "stop_firefox_process_group",
+                    side_effect=RuntimeError("pgid=424242 cleanup failed"))):
+                try:
+                    session.close()
+                    raise AssertionError("Firefox cleanup failure was hidden")
+                except RuntimeError as error:
+                    assert "pgid=424242" in str(error)
+            assert retained_profile.is_dir()
+            assert not retained_socket.closed
+            assert not retained_log.closed
+        finally:
+            retained_log.close()
 
     outage_result = {
         "outage_http":{"reset_status":200, "health_status":200,

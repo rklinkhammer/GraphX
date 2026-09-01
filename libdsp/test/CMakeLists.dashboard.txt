@@ -41,6 +41,7 @@ if(DASHBOARD_TEST_SOURCES)
     add_test(NAME dashboard_integration_discover
         COMMAND ${CMAKE_COMMAND}
             -DTEST_EXECUTABLE=$<TARGET_FILE:test_dashboard_integration>
+            -DEXPECTED_SUITE=DashboardInstalledTree
             -DCATCH2_TEST=1
             -P ${CMAKE_SOURCE_DIR}/cmake/CheckGTestDiscovery.cmake
     )

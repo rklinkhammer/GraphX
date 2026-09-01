@@ -206,6 +206,7 @@ TEST_F(GraphCliTest, SaveGraphPersistsEdits) {
 
 TEST_F(GraphCliTest, ExecutionCommandsFailTruthfullyWithoutInit) {
     EXPECT_EQ(cli_.GetState(), "NOT_INITIALIZED");
+    EXPECT_FALSE(cli_.Configure());
     EXPECT_FALSE(cli_.Start());
     EXPECT_FALSE(cli_.Run());
     EXPECT_FALSE(cli_.Stop());

@@ -42,6 +42,28 @@ import {
   type PresentationViewport,
 } from "./preferences";
 import { SemanticTopology } from "./SemanticTopology";
+import {
+  COMMAND_HISTORY_LIMIT,
+  METRIC_POLL_MS,
+  METRIC_STALE_MS,
+  aggregateMetricText,
+  discoverCommands,
+  fetchMetricsSnapshot,
+  IgnoredMetricSnapshotError,
+  isTerminalOperation,
+  isExactAvailableActivity,
+  metricText,
+  mayAnimateEdge,
+  pollOperation,
+  extractTopLevelJsonMember,
+  prepareGraphExportFromRaw,
+  retainOperationHistory,
+  submitCommand,
+  validateCommandArguments,
+  type CommandDescriptor,
+  type MetricsSnapshot,
+  type OperationRecord,
+} from "./runtime";
 import type {
   AuthoritativeSelection,
   BundleEdge,
@@ -66,6 +88,10 @@ interface ApiEnvelope {
   success: boolean;
   data?: unknown;
   message?: string;
+  snapshot?: {
+    coordinator_revision: number;
+    content_identity: string;
+  };
 }
 
 interface ExecutionState {
@@ -76,6 +102,9 @@ interface ExecutionState {
   graph_generation: number;
   configuration_dirty: boolean;
 }
+
+const emptyRuntimeText = new Map<string, string[]>();
+const emptyActiveEdgeIds = new Set<string>();
 
 function deterministicPresentationDefaults(hierarchy: DisplayHierarchy): {
   mode: "grouped" | "raw";
@@ -165,6 +194,11 @@ function NodeCard({ data, selected }: NodeProps<Node<NodeCardData>>) {
           ))}
         </div>
       </div>
+      {data.runtimeText && data.runtimeText.length > 0 && (
+        <ul className="runtime-values" aria-label={`Runtime metrics for node ${node.id}`}>
+          {data.runtimeText.slice(0, 4).map((text) => <li key={text}>{text}</li>)}
+        </ul>
+      )}
       {data.presentationBoundaryInput && (
         <Handle
           id="presentation-boundary-input"
@@ -253,6 +287,11 @@ function GroupCard({ data, selected }: NodeProps<Node<GroupCardData>>) {
       {!data.collapsed && (
         <p className="group-expanded-note">Expanded compound group</p>
       )}
+      {data.runtimeText && data.runtimeText.length > 0 && (
+        <ul className="runtime-values" aria-label={`Runtime metrics for group ${group.id}`}>
+          {data.runtimeText.slice(0, 4).map((text) => <li key={text}>{text}</li>)}
+        </ul>
+      )}
       {data.presentationBoundaryInput && (
         <Handle
           id="presentation-boundary-input"
@@ -315,6 +354,11 @@ interface TopologyCanvasProps {
   preferredViewport: PresentationViewport | null;
   viewportResetRevision: number;
   reducedMotion: boolean;
+  runtimeTextByNode?: ReadonlyMap<string, string[]>;
+  runtimeTextByGroup?: ReadonlyMap<string, string[]>;
+  runtimeTextByEdge?: ReadonlyMap<string, string[]>;
+  runtimeTextByBundle?: ReadonlyMap<string, string[]>;
+  activeEdgeIds?: ReadonlySet<string>;
   onViewportChange: (viewport: PresentationViewport) => void;
 }
 
@@ -333,6 +377,11 @@ function TopologyCanvasBody({
   preferredViewport,
   viewportResetRevision,
   reducedMotion,
+  runtimeTextByNode = emptyRuntimeText,
+  runtimeTextByGroup = emptyRuntimeText,
+  runtimeTextByEdge = emptyRuntimeText,
+  runtimeTextByBundle = emptyRuntimeText,
+  activeEdgeIds = emptyActiveEdgeIds,
   onViewportChange,
 }: TopologyCanvasProps) {
   const operatorMotionDurationMs = reducedMotion ? 0 : 200;
@@ -344,6 +393,11 @@ function TopologyCanvasBody({
   const authoritativeSelectionRef = useRef(authoritativeSelection);
   const presentationSelectionRef = useRef(presentationSelection);
   const preferredViewportRef = useRef(preferredViewport);
+  const runtimeTextByNodeRef = useRef(runtimeTextByNode);
+  const runtimeTextByGroupRef = useRef(runtimeTextByGroup);
+  const runtimeTextByEdgeRef = useRef(runtimeTextByEdge);
+  const runtimeTextByBundleRef = useRef(runtimeTextByBundle);
+  const activeEdgeIdsRef = useRef(activeEdgeIds);
   const edgeFocusEpochRef = useRef(0);
   const pendingEdgeFocusRef = useRef<{
     edgeId: string;
@@ -352,6 +406,11 @@ function TopologyCanvasBody({
   authoritativeSelectionRef.current = authoritativeSelection;
   presentationSelectionRef.current = presentationSelection;
   preferredViewportRef.current = preferredViewport;
+  runtimeTextByNodeRef.current = runtimeTextByNode;
+  runtimeTextByGroupRef.current = runtimeTextByGroup;
+  runtimeTextByEdgeRef.current = runtimeTextByEdge;
+  runtimeTextByBundleRef.current = runtimeTextByBundle;
+  activeEdgeIdsRef.current = activeEdgeIds;
   const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useReactFlow();
   const selectedNodeId =
     authoritativeSelection?.kind === "node"
@@ -419,6 +478,7 @@ function TopologyCanvasBody({
                     currentAuthoritativeSelection?.kind === "node" &&
                     currentAuthoritativeSelection.id === node.id,
                   onSelect: selectAuthoritative,
+                  runtimeText: runtimeTextByNodeRef.current.get(node.id) ?? [],
                 }
               : {
                   ...node.data,
@@ -429,6 +489,7 @@ function TopologyCanvasBody({
                   onSelect: onPresentationSelect,
                   onToggle: onToggleGroup,
                   onIsolate: onIsolateGroup,
+                  runtimeText: runtimeTextByGroupRef.current.get(node.id) ?? [],
                 },
           selected:
             (node.data.kind === "node" &&
@@ -439,14 +500,27 @@ function TopologyCanvasBody({
               currentPresentationSelection.id === node.id),
         })),
       );
+      let animatedEdgeCount = 0;
       setEdges(
-        layout.edges.map((edge) =>
-          synchronizeCanvasEdgeSelection(
+        layout.edges.map((edge) => {
+          const synchronized = synchronizeCanvasEdgeSelection(
             edge,
             currentAuthoritativeSelection,
             currentPresentationSelection,
-          ),
-        ),
+          );
+          const text = edge.data?.bundle !== undefined
+            ? runtimeTextByBundleRef.current.get(edge.id) ?? []
+            : runtimeTextByEdgeRef.current.get(edge.id) ?? [];
+          const mayAnimate = edge.data?.bundle === undefined && mayAnimateEdge(
+            activeEdgeIdsRef.current.has(edge.id), reducedMotion, animatedEdgeCount,
+          );
+          if (mayAnimate) animatedEdgeCount += 1;
+          return {
+            ...synchronized,
+            animated: mayAnimate,
+            label: text[0],
+          };
+        }),
       );
       setLayoutDiagnostic(
         layout.diagnostic ? hierarchyDiagnosticText(layout.diagnostic) : null,
@@ -475,6 +549,42 @@ function TopologyCanvasBody({
     projection,
     setViewport,
     viewportResetRevision,
+  ]);
+
+  useEffect(() => {
+    setNodes((current) => current.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        runtimeText: node.data.kind === "node"
+          ? runtimeTextByNode.get(node.id) ?? []
+          : runtimeTextByGroup.get(node.id) ?? [],
+      },
+    })));
+    let animated = 0;
+    setEdges((current) => current.map((edge) => {
+      const text = edge.data?.bundle !== undefined
+        ? runtimeTextByBundle.get(edge.id) ?? []
+        : runtimeTextByEdge.get(edge.id) ?? [];
+      const hasRuntime = text.length > 0;
+      const mayAnimate = edge.data?.bundle === undefined && mayAnimateEdge(
+        activeEdgeIds.has(edge.id), reducedMotion, animated,
+      );
+      if (mayAnimate) animated += 1;
+      return {
+        ...edge,
+        animated: mayAnimate,
+        label: hasRuntime ? text[0] : undefined,
+        style: hasRuntime ? { ...edge.style, strokeWidth: 3 } : edge.style,
+      };
+    }));
+  }, [
+    reducedMotion,
+    activeEdgeIds,
+    runtimeTextByBundle,
+    runtimeTextByEdge,
+    runtimeTextByGroup,
+    runtimeTextByNode,
   ]);
 
   useEffect(() => {
@@ -885,6 +995,10 @@ function Inspector({
   projection,
   authoritativeSelection,
   presentationSelection,
+  runtimeTextByNode = emptyRuntimeText,
+  runtimeTextByEdge = emptyRuntimeText,
+  runtimeTextByGroup = emptyRuntimeText,
+  runtimeTextByBundle = emptyRuntimeText,
   onEdit,
   onSelectMemberEdge,
   onToggleGroup,
@@ -895,6 +1009,10 @@ function Inspector({
   projection: PresentationProjection;
   authoritativeSelection: AuthoritativeSelection;
   presentationSelection: PresentationSelection;
+  runtimeTextByNode?: ReadonlyMap<string, string[]>;
+  runtimeTextByEdge?: ReadonlyMap<string, string[]>;
+  runtimeTextByGroup?: ReadonlyMap<string, string[]>;
+  runtimeTextByBundle?: ReadonlyMap<string, string[]>;
   onEdit: (node: DisplayNode, invoker: HTMLElement) => void;
   onSelectMemberEdge: (edgeId: string, invoker: HTMLElement) => void;
   onToggleGroup: (groupId: string) => void;
@@ -934,6 +1052,7 @@ function Inspector({
           }
           model={model}
           onSelectMemberEdge={onSelectMemberEdge}
+          runtimeText={runtimeTextByBundle.get(presentationSelection.id) ?? []}
         />
       )}
       {group && (
@@ -941,6 +1060,7 @@ function Inspector({
           group={group}
           onToggle={() => onToggleGroup(group.id)}
           onIsolate={() => onIsolateGroup(group.id)}
+          runtimeText={runtimeTextByGroup.get(group.id) ?? []}
         />
       )}
       {!presentationSelection && node && (
@@ -956,12 +1076,15 @@ function Inspector({
             <dd>{node.outputPorts.map((port) => formatPort(port.key)).join(", ") || "None"}</dd>
           </dl>
           <pre>{JSON.stringify(node.document.node_config ?? {}, null, 2)}</pre>
+          <RuntimeMetricList text={runtimeTextByNode.get(node.id) ?? []} />
           <button type="button" onClick={(event) => onEdit(node, event.currentTarget)}>
             Edit node parameters
           </button>
         </div>
       )}
-      {!presentationSelection && edge && <EdgeInspector edge={edge} />}
+      {!presentationSelection && edge && (
+        <EdgeInspector edge={edge} runtimeText={runtimeTextByEdge.get(edge.id) ?? []} />
+      )}
     </aside>
   );
 }
@@ -970,10 +1093,12 @@ function GroupInspector({
   group,
   onToggle,
   onIsolate,
+  runtimeText = [],
 }: {
   group: DisplayGroup;
   onToggle: () => void;
   onIsolate: () => void;
+  runtimeText?: string[];
 }) {
   return (
     <section data-testid="group-inspector">
@@ -996,6 +1121,7 @@ function GroupInspector({
         <dt>All hidden/crossing authoritative edges</dt>
         <dd>{group.hiddenEdgeIds.length}</dd>
       </dl>
+      <RuntimeMetricList text={runtimeText} />
       <details>
         <summary>Authoritative member identities</summary>
         <ul>
@@ -1030,10 +1156,12 @@ function BundleInspector({
   bundle,
   model,
   onSelectMemberEdge,
+  runtimeText = [],
 }: {
   bundle: BundleEdge | null;
   model: DisplayGraph;
   onSelectMemberEdge: (edgeId: string, invoker: HTMLElement) => void;
+  runtimeText?: string[];
 }) {
   if (!bundle) {
     return <p>Selected bundle is no longer visible.</p>;
@@ -1057,6 +1185,7 @@ function BundleInspector({
         <dt>Authoritative member count</dt>
         <dd>{bundle.memberEdgeIds.length}</dd>
       </dl>
+      <RuntimeMetricList text={runtimeText} />
       <ol className="bundle-members">
         {bundle.memberEdgeIds.map((edgeId) => {
           const edge = edgesById.get(edgeId);
@@ -1124,20 +1253,34 @@ function removedSelectionNotice(
   return `Selected ${selection.kind} ${selection.id} was removed by the graph refresh; selection cleared.`;
 }
 
-function EdgeInspector({ edge }: { edge: DisplayEdge }) {
+function RuntimeMetricList({ text }: { text: string[] }) {
   return (
-    <dl data-testid="edge-inspector">
-      <dt>Edge identity</dt>
-      <dd className="identity">{edge.id}</dd>
-      <dt>Source node</dt>
-      <dd>{edge.sourceNodeId}</dd>
-      <dt>Source port</dt>
-      <dd>{formatPort(edge.sourcePort)}</dd>
-      <dt>Target node</dt>
-      <dd>{edge.targetNodeId}</dd>
-      <dt>Target port</dt>
-      <dd>{formatPort(edge.targetPort)}</dd>
-    </dl>
+    <section className="runtime-inspector" aria-label="Runtime metrics">
+      <h4>Runtime metrics</h4>
+      {text.length === 0 ? <p>Unavailable: no correlated metric value.</p> : (
+        <ul>{text.slice(0, 64).map((value) => <li key={value}>{value}</li>)}</ul>
+      )}
+    </section>
+  );
+}
+
+function EdgeInspector({ edge, runtimeText = [] }: { edge: DisplayEdge; runtimeText?: string[] }) {
+  return (
+    <div data-testid="edge-inspector">
+      <dl>
+        <dt>Edge identity</dt>
+        <dd className="identity">{edge.id}</dd>
+        <dt>Source node</dt>
+        <dd>{edge.sourceNodeId}</dd>
+        <dt>Source port</dt>
+        <dd>{formatPort(edge.sourcePort)}</dd>
+        <dt>Target node</dt>
+        <dd>{edge.targetNodeId}</dd>
+        <dt>Target port</dt>
+        <dd>{formatPort(edge.targetPort)}</dd>
+      </dl>
+      <RuntimeMetricList text={runtimeText} />
+    </div>
   );
 }
 
@@ -1443,6 +1586,107 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
+function CommandArgumentControls({
+  descriptor,
+  values,
+  onChange,
+}: {
+  descriptor: CommandDescriptor | undefined;
+  values: Record<string, unknown>;
+  onChange: (values: Record<string, unknown>) => void;
+}) {
+  const properties = descriptor?.arguments.properties;
+  if (!descriptor || !descriptor.supported || properties === null ||
+      typeof properties !== "object" || Array.isArray(properties)) return null;
+  const requiredFields = new Set(
+    Array.isArray(descriptor.arguments.required)
+      ? descriptor.arguments.required.filter((name): name is string => typeof name === "string")
+      : [],
+  );
+  return (
+    <fieldset className="command-arguments">
+      <legend>Structured command arguments</legend>
+      {Object.entries(properties as Record<string, Record<string, unknown>>).slice(0, 32)
+        .map(([name, schema]) => {
+          const id = `command-argument-${name}`;
+          const required = requiredFields.has(name);
+          const label = `${name}${required ? " (required)" : ""}`;
+          const update = (value: unknown) => onChange({ ...values, [name]: value });
+          if (schema.type === "boolean") return (
+            <label key={name} htmlFor={id}>{label}
+              <select id={id} required={required} aria-required={required}
+                value={typeof values[name] === "boolean" ? String(values[name]) : ""}
+                onChange={(event) => {
+                  if (event.target.value === "") {
+                    const next = { ...values };
+                    delete next[name];
+                    onChange(next);
+                  } else {
+                    update(event.target.value === "true");
+                  }
+                }}>
+                <option value="">Select true or false</option>
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+          );
+          if (schema.type === "string" && Array.isArray(schema.enum)) {
+            const enumValues = schema.enum as string[];
+            return (
+            <label key={name} htmlFor={id}>{label}
+              <select id={id} required={required} aria-required={required}
+                value={typeof values[name] === "string"
+                  ? String(enumValues.findIndex((value) => value === values[name])) : "unset"}
+                onChange={(event) => {
+                  if (event.target.value === "unset") {
+                    const next = { ...values };
+                    delete next[name];
+                    onChange(next);
+                  } else {
+                    update(enumValues[Number(event.target.value)]);
+                  }
+                }}>
+                <option value="unset">Select a value</option>
+                {enumValues.slice(0, 64).map((value, index) =>
+                  <option key={index} value={String(index)}>
+                    {String(value) === "" ? "(empty string)" : String(value)}
+                  </option>)}
+              </select>
+            </label>
+            );
+          }
+          if (schema.type === "string") return (
+            <label key={name} htmlFor={id}>{label}
+              <input id={id} type="text" maxLength={Number(schema.maxLength)}
+                required={required} aria-required={required}
+                value={String(values[name] ?? "")}
+                onChange={(event) => update(event.target.value)} />
+            </label>
+          );
+          return (
+            <label key={name} htmlFor={id}>{label}
+              <input id={id} type="number"
+                required={required} aria-required={required}
+                min={Number(schema.minimum)} max={Number(schema.maximum)}
+                step={schema.type === "integer" || schema.type === "unsigned" ? 1 : "any"}
+                value={typeof values[name] === "number" ? String(values[name]) : ""}
+                onChange={(event) => {
+                  if (event.target.value === "") {
+                    const next = { ...values };
+                    delete next[name];
+                    onChange(next);
+                  } else {
+                    update(Number(event.target.value));
+                  }
+                }} />
+            </label>
+          );
+        })}
+    </fieldset>
+  );
+}
+
 export default function App() {
   const [model, setModel] = useState<DisplayGraph | null>(null);
   const [hierarchy, setHierarchy] = useState<DisplayHierarchy>({
@@ -1482,8 +1726,27 @@ export default function App() {
   const [editing, setEditing] = useState<DisplayNode | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [execution, setExecution] = useState<ExecutionState | null>(null);
+  const [commands, setCommands] = useState<CommandDescriptor[]>([]);
+  const [selectedCommand, setSelectedCommand] = useState("configure");
+  const [commandArguments, setCommandArguments] = useState<Record<string, unknown>>({});
+  const [commandHistory, setCommandHistory] = useState<OperationRecord[]>([]);
+  const [commandSubmissionBusy, setCommandSubmissionBusy] = useState(false);
+  const [followedCommands, setFollowedCommands] = useState<Set<string>>(new Set());
+  const [graphSnapshot, setGraphSnapshot] = useState<{
+    coordinator_revision: number;
+    content_identity: string;
+  } | null>(null);
+  const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
+  const [metricsPaused, setMetricsPaused] = useState(false);
+  const [metricsReceivedAt, setMetricsReceivedAt] = useState<number | null>(null);
+  const [metricsBrowserStale, setMetricsBrowserStale] = useState(false);
   const reducedMotion = useReducedMotion();
   const modelRef = useRef<DisplayGraph | null>(null);
+  const exportSnapshotRef = useRef<{
+    raw_graph: string;
+    coordinator_revision: number;
+    content_identity: string;
+  } | null>(null);
   const hierarchyRef = useRef(hierarchy);
   const signatureRef = useRef<string | null>(null);
   const selectionRef = useRef(authoritativeSelection);
@@ -1505,6 +1768,12 @@ export default function App() {
   } | null>(null);
   const lastRefreshRemovedSelectionRef = useRef(false);
   const editorInvokerRef = useRef<HTMLElement | null>(null);
+  const commandSubmissionBusyRef = useRef(false);
+  const followedCommandsRef = useRef<Set<string>>(new Set());
+  const commandAbortControllersRef = useRef<Set<AbortController>>(new Set());
+  const metricConnectionRef = useRef<"unknown" | "available" | "lost">("unknown");
+  const metricSequenceRef = useRef<{ generation: number; sequence: number } | null>(null);
+  const metricGenerationRef = useRef<number | null>(null);
   modelRef.current = model;
   hierarchyRef.current = hierarchy;
   selectionRef.current = authoritativeSelection;
@@ -1532,7 +1801,25 @@ export default function App() {
             ?.dataset.semanticKey ?? null
         : null;
     const response = await fetch(`${apiBase}/graph`);
-    const envelope = await responseEnvelope(response);
+    const responseText = await response.text();
+    let envelope: ApiEnvelope;
+    try {
+      envelope = JSON.parse(responseText) as ApiEnvelope;
+    } catch {
+      throw new Error("graph response is not valid JSON");
+    }
+    if (!response.ok || !envelope.success || envelope.data === undefined) {
+      throw new Error(envelope.message ?? `HTTP ${response.status}`);
+    }
+    const rawGraph = extractTopLevelJsonMember(responseText, "data");
+    if (!envelope.snapshot ||
+        !Number.isSafeInteger(envelope.snapshot.coordinator_revision) ||
+        envelope.snapshot.coordinator_revision < 0 ||
+        typeof envelope.snapshot.content_identity !== "string" ||
+        envelope.snapshot.content_identity.length === 0 ||
+        envelope.snapshot.content_identity.length > 256) {
+      throw new Error("graph response is missing its atomic snapshot identity");
+    }
     const next = adaptGraphDocument(envelope.data);
     const nextHierarchy = adaptPresentationGroups(next);
     const wasLoaded = modelRef.current !== null;
@@ -1662,7 +1949,13 @@ export default function App() {
         ? focusedSemanticKey
         : "__heading__";
     }
+    exportSnapshotRef.current = {
+      raw_graph: rawGraph,
+      coordinator_revision: envelope.snapshot.coordinator_revision,
+      content_identity: envelope.snapshot.content_identity,
+    };
     setModel(next);
+    setGraphSnapshot(envelope.snapshot ?? null);
     setHierarchy(nextHierarchy);
     setLoadError(null);
     setIsolatedGroupId((current) =>
@@ -2012,27 +2305,214 @@ export default function App() {
     void loadGraph().catch((error: unknown) => {
       setLoadError(error instanceof Error ? error.message : String(error));
     });
+    const discoveryAbort = new AbortController();
+    void discoverCommands(discoveryAbort.signal)
+      .then((discovered) => {
+        setCommands(discovered);
+        if (discovered.length > 0) setSelectedCommand(discovered[0].name);
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setNotice(`Command discovery failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
     void updateExecution();
     const timer = window.setInterval(() => void updateExecution(), 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      discoveryAbort.abort();
+      for (const controller of commandAbortControllersRef.current) controller.abort();
+      commandAbortControllersRef.current.clear();
+      window.clearInterval(timer);
+    };
   }, [loadGraph, updateExecution]);
 
-  const execute = async (command: string) => {
+  useEffect(() => {
+    if (!model || !execution || metricsPaused) return;
+    let active = true;
+    let timer = 0;
+    let inFlight: AbortController | null = null;
+    const poll = async () => {
+      if (!active || inFlight !== null) return;
+      inFlight = new AbortController();
+      try {
+        const snapshot = await fetchMetricsSnapshot(
+          model,
+          execution.graph_generation,
+          inFlight.signal,
+          metricSequenceRef.current,
+        );
+        if (!active) return;
+        const prior = metricSequenceRef.current;
+        if (prior && prior.generation === snapshot.graph_generation &&
+            snapshot.snapshot_sequence < prior.sequence) return;
+        metricSequenceRef.current = {
+          generation: snapshot.graph_generation,
+          sequence: snapshot.snapshot_sequence,
+        };
+        setMetrics(snapshot);
+        setMetricsReceivedAt(Date.now());
+        setMetricsBrowserStale(false);
+        if (metricConnectionRef.current === "lost") {
+          setNotice("Runtime metrics connection recovered.");
+        }
+        metricConnectionRef.current = "available";
+      } catch (error) {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+        if (error instanceof IgnoredMetricSnapshotError) return;
+        if (metricConnectionRef.current !== "lost") {
+          setNotice(`Runtime metrics unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        metricConnectionRef.current = "lost";
+      } finally {
+        inFlight = null;
+        if (active) timer = window.setTimeout(() => void poll(), METRIC_POLL_MS);
+      }
+    };
+    void poll();
+    return () => {
+      active = false;
+      if (timer) window.clearTimeout(timer);
+      inFlight?.abort();
+    };
+  }, [execution?.graph_generation, metricsPaused, model]);
+
+  useEffect(() => {
+    const generation = execution?.graph_generation ?? null;
+    const retainedGenerationMismatch = metrics !== null &&
+      metrics.graph_generation !== generation;
+    if (retainedGenerationMismatch ||
+        (metricGenerationRef.current !== null &&
+         metricGenerationRef.current !== generation)) {
+      setMetrics(null);
+      setMetricsReceivedAt(null);
+      setMetricsBrowserStale(false);
+      metricSequenceRef.current = null;
+      setNotice(`Runtime metrics invalidated for graph generation ${generation ?? "unavailable"}.`);
+    }
+    metricGenerationRef.current = generation;
+  }, [execution?.graph_generation, metrics]);
+
+  useEffect(() => {
+    if (metricsPaused || metricsReceivedAt === null) {
+      setMetricsBrowserStale(false);
+      return;
+    }
+    const update = () => setMetricsBrowserStale(
+      Date.now() - metricsReceivedAt > METRIC_STALE_MS,
+    );
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [metricsPaused, metricsReceivedAt]);
+
+  const retainOperation = useCallback((operation: OperationRecord) => {
+    setCommandHistory((current) => retainOperationHistory(current, operation));
+  }, []);
+
+  const execute = async (command: string, argumentsValue: Record<string, unknown> = {}) => {
+    if (commandSubmissionBusyRef.current) {
+      setNotice("A command submission is already in progress.");
+      return;
+    }
+    if (followedCommandsRef.current.has(command)) {
+      setNotice(`Command ${command} already has an active operation.`);
+      return;
+    }
+    const descriptor = commands.find((candidate) => candidate.name === command);
+    if (!descriptor?.supported) {
+      setNotice(`Command ${command} is unsupported: ${descriptor?.unsupportedReason ?? "not discovered"}`);
+      return;
+    }
+    const argumentError = validateCommandArguments(descriptor, argumentsValue);
+    if (argumentError) {
+      setNotice(`Command ${command} is invalid: ${argumentError}`);
+      return;
+    }
+    const abort = new AbortController();
+    commandAbortControllersRef.current.add(abort);
+    commandSubmissionBusyRef.current = true;
+    setCommandSubmissionBusy(true);
+    let ownsSubmission = true;
+    let following = false;
+    const releaseSubmission = () => {
+      if (!ownsSubmission) return;
+      ownsSubmission = false;
+      commandSubmissionBusyRef.current = false;
+      setCommandSubmissionBusy(false);
+    };
+    let acceptedOperation: OperationRecord | null = null;
     try {
-      const response = await fetch(`${apiBase}/execution/${command}`, {
-        method: "POST",
-      });
-      const envelope = await responseEnvelope(response);
-      setNotice(envelope.message ?? `Command ${command} accepted`);
+      const submitted = await submitCommand(command, argumentsValue, abort.signal);
+      acceptedOperation = submitted.operation;
+      retainOperation({ ...submitted.operation, diagnostic: submitted.message });
+      setNotice(submitted.message);
+      if (submitted.location && !isTerminalOperation(submitted.operation.status)) {
+        following = true;
+        followedCommandsRef.current.add(command);
+        setFollowedCommands(new Set(followedCommandsRef.current));
+        releaseSubmission();
+        const completed = await pollOperation(submitted.location, abort.signal, command);
+        retainOperation({ ...completed, diagnostic: `Command ${command} ${completed.status}.` });
+        setNotice(`Command ${command} ${completed.status}.`);
+      }
       await updateExecution();
     } catch (error) {
-      setNotice(
-        `Command ${command} failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        const diagnostic = error instanceof Error ? error.message : String(error);
+        if (acceptedOperation && diagnostic === "operation expired or is unknown") {
+          retainOperation({
+            ...acceptedOperation,
+            status: "expired",
+            diagnostic: "Operation expired or is unknown.",
+          });
+          setNotice(`Command ${command} operation expired or is unknown.`);
+        } else if (acceptedOperation) {
+          retainOperation({
+            ...acceptedOperation,
+            status: "failed",
+            diagnostic: `Operation follow-up failed: ${diagnostic}`,
+          });
+          setNotice(`Command ${command} failed: ${diagnostic}`);
+        } else {
+          setNotice(`Command ${command} failed: ${diagnostic}`);
+        }
+      }
+    } finally {
+      if (following) {
+        followedCommandsRef.current.delete(command);
+        setFollowedCommands(new Set(followedCommandsRef.current));
+      }
+      commandAbortControllersRef.current.delete(abort);
+      releaseSubmission();
     }
   };
+
+  const exportGraph = useCallback(() => {
+    const snapshot = exportSnapshotRef.current;
+    if (!snapshot) {
+      setNotice("Graph export is unavailable until an authoritative snapshot is loaded.");
+      return;
+    }
+    try {
+      const { encoded, filename } = prepareGraphExportFromRaw(
+        snapshot.raw_graph,
+        snapshot.coordinator_revision,
+        snapshot.content_identity,
+      );
+      const url = URL.createObjectURL(new Blob([encoded], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      try {
+        anchor.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      setNotice(`Graph export prepared: ${filename}`);
+    } catch (error) {
+      setNotice(`Graph export failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, []);
 
   const saveNodeConfig = async (
     node: DisplayNode,
@@ -2054,6 +2534,62 @@ export default function App() {
       setNotice(`Parameters for ${node.id} updated in memory`);
     }
   };
+
+  const runtimeValuesByIdentity = useMemo(() => {
+    const result = new Map<string, NonNullable<typeof metrics>["values"]>();
+    for (const value of metrics?.values ?? []) {
+      const displayValue = metricsBrowserStale
+        ? {
+            ...value,
+            availability: "unavailable" as const,
+            reason: "browser_snapshot_stale",
+            value: null,
+            sample_time: null,
+            rate: null,
+          }
+        : value;
+      const current = result.get(value.identity) ?? [];
+      current.push(displayValue);
+      result.set(value.identity, current);
+    }
+    return result;
+  }, [metrics, metricsBrowserStale]);
+  const runtimeTextByNode = useMemo(() => new Map(
+    (model?.nodes ?? []).map((node) => [
+      node.id,
+      (runtimeValuesByIdentity.get(`node:${node.id}`) ?? []).map(metricText),
+    ]),
+  ), [model?.nodes, runtimeValuesByIdentity]);
+  const runtimeTextByEdge = useMemo(() => new Map(
+    (model?.edges ?? []).map((edge) => [
+      edge.id,
+      (runtimeValuesByIdentity.get(`edge:${edge.id}`) ?? []).map(metricText),
+    ]),
+  ), [model?.edges, runtimeValuesByIdentity]);
+  const runtimeTextByGroup = useMemo(() => new Map(
+    hierarchy.groups.map((group) => {
+      const values = [
+        ...group.memberNodeIds.flatMap((id) => runtimeValuesByIdentity.get(`node:${id}`) ?? []),
+        ...group.internalEdgeIds.flatMap((id) => runtimeValuesByIdentity.get(`edge:${id}`) ?? []),
+      ];
+      return [group.id, aggregateMetricText(
+        values, group.memberNodeIds.length + group.internalEdgeIds.length,
+      )];
+    }),
+  ), [hierarchy.groups, runtimeValuesByIdentity]);
+  const runtimeTextByBundle = useMemo(() => new Map(
+    (effectiveProjection?.bundles ?? []).map((bundle) => [
+      bundle.id,
+      aggregateMetricText(bundle.memberEdgeIds.flatMap((id) =>
+        runtimeValuesByIdentity.get(`edge:${id}`) ?? []), bundle.memberEdgeIds.length),
+    ]),
+  ), [effectiveProjection?.bundles, runtimeValuesByIdentity]);
+  const activeEdgeIds = useMemo(() => new Set(
+    (!metricsPaused && !metricsBrowserStale && metrics?.availability.state === "available"
+      ? metrics.values : [])
+      .filter(isExactAvailableActivity)
+      .map((value) => value.identity.slice("edge:".length)),
+  ), [metrics, metricsPaused, metricsBrowserStale]);
 
   return (
     <div className="dashboard">
@@ -2085,18 +2621,80 @@ export default function App() {
             )}
           </div>
           <div className="execution-actions" role="toolbar" aria-label="Execution commands">
-            {["configure", "init", "start", "run", "stop", "join"].map(
-              (command) => (
+            {commands.map((command) => (
                 <button
                   type="button"
-                  key={command}
-                  onClick={() => void execute(command)}
+                  key={command.name}
+                  disabled={commandSubmissionBusy || followedCommands.has(command.name) ||
+                    !command.supported}
+                  title={command.supported ? command.description : command.unsupportedReason}
+                  onClick={() => void execute(command.name)}
                 >
-                  {command[0].toLocaleUpperCase() + command.slice(1)}
+                  {command.name[0]?.toLocaleUpperCase() + command.name.slice(1)}
                 </button>
-              ),
-            )}
+              ))}
           </div>
+        </section>
+
+        <section className="runtime-controls" aria-labelledby="command-palette-heading">
+          <div>
+            <h2 id="command-palette-heading">Typed command palette</h2>
+            <label htmlFor="command-palette">Discovered command</label>
+            <select id="command-palette" value={selectedCommand}
+              onChange={(event) => {
+                setSelectedCommand(event.target.value);
+                setCommandArguments({});
+              }}>
+              {commands.map((command) => <option key={command.name} value={command.name}>
+                {command.name}{command.supported ? "" : " (unsupported)"}
+              </option>)}
+            </select>
+            <CommandArgumentControls
+              descriptor={commands.find((command) => command.name === selectedCommand)}
+              values={commandArguments}
+              onChange={setCommandArguments}
+            />
+            <button type="button" disabled={commandSubmissionBusy ||
+              followedCommands.has(selectedCommand) ||
+              !commands.find((command) => command.name === selectedCommand)?.supported}
+              onClick={() => void execute(selectedCommand, commandArguments)}>
+              Submit typed command
+            </button>
+          </div>
+          <div>
+            <h2>Runtime observation</h2>
+            <p data-testid="metrics-status">
+              Metrics: {metricsPaused ? "paused" : metricsBrowserStale
+                ? "stale" : metrics?.availability.state ?? "unavailable"}
+              {metrics?.snapshot_time ? `; captured ${metrics.snapshot_time}` : ""}
+              {metrics?.availability.reason ? `; ${metrics.availability.reason}` : ""}
+            </p>
+            <p className="runtime-legend">
+              Runtime legend: exact available values include units and sample time;
+              unavailable values include a reason; an animated edge means its exact
+              generic <code>activity</code> gauge is currently positive.
+            </p>
+            <button type="button" aria-pressed={metricsPaused}
+              onClick={() => {
+                setMetricsPaused((current) => {
+                  setNotice(current ? "Runtime metric updates resumed." : "Runtime metric updates paused; graph execution continues.");
+                  return !current;
+                });
+              }}>
+              {metricsPaused ? "Resume runtime updates" : "Pause runtime updates"}
+            </button>
+            <button type="button" onClick={exportGraph}>Export graph snapshot</button>
+          </div>
+          <details className="command-history">
+            <summary>Command history ({commandHistory.length}/{COMMAND_HISTORY_LIMIT})</summary>
+            <ol>
+              {commandHistory.map((entry) => <li key={entry.operation_id}>
+                <strong>{entry.command}</strong> {entry.status}; operation {entry.operation_id};
+                state {entry.state}; revision {entry.coordinator_revision}; generation {entry.graph_generation}
+                {entry.diagnostic ? `; ${entry.diagnostic}` : ""}
+              </li>)}
+            </ol>
+          </details>
         </section>
 
         <div className="notice-region" role="status" aria-live="polite" aria-atomic="true">
@@ -2247,6 +2845,11 @@ export default function App() {
                             preferredViewport={preferredViewport}
                             viewportResetRevision={viewportResetRevision}
                             reducedMotion={reducedMotion}
+                            runtimeTextByNode={runtimeTextByNode}
+                            runtimeTextByGroup={runtimeTextByGroup}
+                            runtimeTextByEdge={runtimeTextByEdge}
+                            runtimeTextByBundle={runtimeTextByBundle}
+                            activeEdgeIds={activeEdgeIds}
                             onViewportChange={(viewport) => {
                               setPreferredViewport(viewport);
                               setPreferencesDirty(true);
@@ -2270,6 +2873,10 @@ export default function App() {
                         layoutFallbackDiagnostic !== null &&
                         presentationMode === "grouped"
                       }
+                      runtimeTextByNode={runtimeTextByNode}
+                      runtimeTextByEdge={runtimeTextByEdge}
+                      runtimeTextByGroup={runtimeTextByGroup}
+                      runtimeTextByBundle={runtimeTextByBundle}
                       onSearch={setSearch}
                       onTypeFilter={setTypeFilter}
                       onExpandedGroup={(groupId, expanded) => {
@@ -2306,6 +2913,10 @@ export default function App() {
                   projection={effectiveProjection!}
                   authoritativeSelection={authoritativeSelection}
                   presentationSelection={presentationSelection}
+                  runtimeTextByNode={runtimeTextByNode}
+                  runtimeTextByEdge={runtimeTextByEdge}
+                  runtimeTextByGroup={runtimeTextByGroup}
+                  runtimeTextByBundle={runtimeTextByBundle}
                   onEdit={openEditor}
                   onSelectMemberEdge={(edgeId) => {
                     setPresentationSelection(null);

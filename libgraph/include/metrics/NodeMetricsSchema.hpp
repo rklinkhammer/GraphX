@@ -33,6 +33,9 @@
 #include <string>
 #include <memory>
 #include <stdexcept>
+#include <cstdint>
+
+#include "metrics/MetricsEvent.hpp"
 
 
 namespace app::metrics {
@@ -92,6 +95,20 @@ struct NodeMetricsSchema {
      * @brief Optional: node-specific display hints from config
      */
     json display_hints;
+
+    /** Exact runtime binding. node_name remains diagnostic only. */
+    MetricTarget target;
+    std::uint64_t graph_generation{0};
+
+    struct MetricDescriptor {
+        std::string metric_id;
+        std::string scalar_type;
+        std::string unit;
+        std::string semantics;
+        std::string aggregation;
+        std::string availability_rule;
+    };
+    std::vector<MetricDescriptor> descriptors;
 
     /**
      * @brief C++20 Designated Initializer Support (Phase 1 C++26 Modernization)

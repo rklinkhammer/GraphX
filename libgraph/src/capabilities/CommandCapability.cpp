@@ -480,9 +480,6 @@ CommandOperationResult CommandCapability::Submit(const CommandRequest& request) 
             configured.success, configured.message, executor);
         if (configured.success) {
             ClearOperationsLocked();
-            if (metrics_) {
-                metrics_->ResetGeneration();
-            }
         }
         return result;
     }

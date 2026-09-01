@@ -33,7 +33,7 @@ void PrintHelp() {
       << "  get-node --id ID [--format table|json]\n"
       << "  update-node --id ID --config JSON\n"
       << "  node-count | node-ids | nodes-by-type TYPE\n"
-      << "  init | start | run | stop | join | state\n"
+      << "  configure | init | start | run | stop | join | state\n"
       << "  plugins <directory>\n"
       << "  help | quit\n\n"
       << "Structural graph edits are intentionally unsupported. Save parameter "
@@ -198,6 +198,9 @@ int Execute(graph::GraphCli &cli, const std::vector<std::string> &arguments) {
     }
     cli.SetPluginDirectory(arguments[1]);
     return 0;
+  }
+  if (command == "configure") {
+    return cli.Configure() ? 0 : 1;
   }
   if (command == "init") {
     return cli.Init() ? 0 : 1;

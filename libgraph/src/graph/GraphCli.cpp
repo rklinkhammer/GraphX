@@ -35,6 +35,7 @@ bool GraphCli::LoadGraph(const std::string& filepath) {
         coordinator_ = std::make_unique<GraphCoordinator>(graph_);
         executor_.reset();
         commands_.reset();
+        last_command_result_.reset();
         graph_path_ = filepath;
         dirty_ = false;
         return true;
@@ -225,13 +226,13 @@ bool GraphCli::UpdateNode(const std::string& id, const nlohmann::json& config) {
     }
 }
 
-bool GraphCli::Init() {
+bool GraphCli::Configure() {
     if (!coordinator_ || graph_path_.empty()) {
         std::cerr << "Error: No graph loaded\n";
         return false;
     }
     if (dirty_) {
-        std::cerr << "Error: Graph has unsaved changes. Save before init.\n";
+        std::cerr << "Error: Graph has unsaved changes. Save before configure.\n";
         return false;
     }
     try {
@@ -245,9 +246,12 @@ bool GraphCli::Init() {
         }
         commands_ =
             executor_->GetCapability<capabilities::CommandCapability>();
+        const auto snapshot = coordinator_->Snapshot();
         const auto result = commands_->Submit(
-            {.name = capabilities::CommandName::Init,
-             .coordinator_revision = coordinator_->Snapshot().Revision()});
+            {.name = capabilities::CommandName::Configure,
+             .configuration = snapshot,
+             .coordinator_revision = snapshot.Revision()});
+        last_command_result_ = result;
         if (!result.success) {
             std::cerr << "Error: " << result.message << "\n";
         }
@@ -259,6 +263,20 @@ bool GraphCli::Init() {
     }
 }
 
+bool GraphCli::Init() {
+    if (!commands_ && !Configure()) {
+        return false;
+    }
+    const auto result = commands_->Submit(
+        {.name = capabilities::CommandName::Init,
+         .coordinator_revision = coordinator_->Snapshot().Revision()});
+    last_command_result_ = result;
+    if (!result.success) {
+        std::cerr << "Error: " << result.message << "\n";
+    }
+    return result.success;
+}
+
 bool GraphCli::Start() {
     if (!commands_) {
         std::cerr << "Error: Executor is not initialized\n";
@@ -267,6 +285,7 @@ bool GraphCli::Start() {
     const auto result = commands_->Submit(
         {.name = capabilities::CommandName::Start,
          .coordinator_revision = coordinator_->Snapshot().Revision()});
+    last_command_result_ = result;
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -293,6 +312,7 @@ bool GraphCli::Run() {
         }
         result = *current;
     }
+    last_command_result_ = result;
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -304,9 +324,22 @@ bool GraphCli::Stop() {
         std::cerr << "Error: Executor is not initialized\n";
         return false;
     }
-    const auto result = commands_->Submit(
+    auto result = commands_->Submit(
         {.name = capabilities::CommandName::Stop,
          .coordinator_revision = coordinator_->Snapshot().Revision()});
+    while (result.success &&
+           (result.status == capabilities::OperationStatus::Accepted ||
+            result.status == capabilities::OperationStatus::Running)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        const auto current = commands_->GetOperation(result.operation_id);
+        if (!current) {
+            result.success = false;
+            result.message = "Stop operation result expired";
+            break;
+        }
+        result = *current;
+    }
+    last_command_result_ = result;
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }
@@ -333,6 +366,7 @@ bool GraphCli::Join() {
         }
         result = *current;
     }
+    last_command_result_ = result;
     if (!result.success) {
         std::cerr << "Error: " << result.message << "\n";
     }

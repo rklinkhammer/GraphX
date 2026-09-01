@@ -47,6 +47,9 @@ GENERATOR_TIMEOUT_SECONDS = 60
 # 1,295,262 bytes, so retain a finite 4 MiB qualification-client allowance.
 FIREFOX_BIDI_REVIEWED_AXE_FRAME_BYTES = 1_295_262
 FIREFOX_BIDI_RECEIVE_MAX_BYTES = 4 * 1024 * 1024
+FIREFOX_PROCESS_GROUP_GRACE_SECONDS = 5.0
+FIREFOX_PROCESS_GROUP_TERM_SECONDS = 3.0
+FIREFOX_PROCESS_GROUP_KILL_SECONDS = 5.0
 RECEIVER_AUDIT_JQ = r'''[path(..) as $p | $p[]? |
   select(type == "string") | ascii_downcase |
   select(. == "messages" or contains("truth") or contains("schedule") or
@@ -417,6 +420,172 @@ def locate_firefox() -> Path:
         "GRAPHX_FIREFOX_BINARY")
 
 
+def firefox_process_group_alive(pgid: int) -> bool:
+    """Return whether an owned Firefox process group still has members."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError as error:
+        raise RuntimeError(
+            f"cannot inspect owned Firefox process group pgid={pgid}: "
+            f"{error}") from error
+    return True
+
+
+def stop_firefox_process_group(
+        process: subprocess.Popen[str], pgid: int, profile: Path,
+        *, start_new_session: bool,
+        grace_timeout: float = FIREFOX_PROCESS_GROUP_GRACE_SECONDS,
+        term_timeout: float = FIREFOX_PROCESS_GROUP_TERM_SECONDS,
+        kill_timeout: float = FIREFOX_PROCESS_GROUP_KILL_SECONDS,
+        platform_name: str = sys.platform) -> None:
+    """Terminate, kill if necessary, and reap one isolated Firefox group."""
+    diagnostics = f"pgid={pgid} profile={profile} root_pid={process.pid}"
+
+    if (not start_new_session or pgid <= 1 or process.pid <= 1 or
+            pgid != process.pid):
+        raise RuntimeError(
+            "Firefox process ownership metadata is invalid: " + diagnostics)
+    if process.poll() is None:
+        try:
+            observed_pgid = os.getpgid(process.pid)
+        except ProcessLookupError as error:
+            if process.poll() is not None:
+                observed_pgid = pgid
+            else:
+                raise RuntimeError(
+                    "live Firefox root disappeared during ownership check: "
+                    f"{diagnostics}: {error}") from error
+        except OSError as error:
+            raise RuntimeError(
+                f"cannot verify live Firefox root ownership {diagnostics}: "
+                f"{error}") from error
+        if observed_pgid != pgid:
+            raise RuntimeError(
+                "Firefox root no longer belongs to its owned process group: "
+                f"{diagnostics} observed_pgid={observed_pgid}")
+
+    def signal_group(group_signal: signal.Signals) -> OSError | None:
+        try:
+            os.killpg(pgid, group_signal)
+        except ProcessLookupError:
+            return None
+        except OSError as error:
+            return error
+        return None
+
+    def kill_root_after_group_failure(group_error: OSError) -> None:
+        root_error: BaseException | None = None
+        if process.poll() is not None:
+            root_error = RuntimeError(
+                "Firefox root exited before the fallback kill")
+        else:
+            try:
+                fallback_pgid = os.getpgid(process.pid)
+                if fallback_pgid != pgid:
+                    raise RuntimeError(
+                        "Firefox root PID was reused before fallback: "
+                        f"{diagnostics} observed_pgid={fallback_pgid}")
+                process.kill()
+            except (OSError, RuntimeError) as error:
+                root_error = error
+        if root_error is None:
+            try:
+                process.wait(timeout=max(0.1, kill_timeout))
+            except (subprocess.TimeoutExpired, OSError) as error:
+                root_error = error
+        if root_error is not None:
+            raise RuntimeError(
+                "owned Firefox group and root kills both failed: "
+                f"{diagnostics}; group_error={group_error!r}; "
+                f"root_error={root_error!r}") from root_error
+
+        try:
+            residual_group = firefox_process_group_alive(pgid)
+        except RuntimeError as error:
+            raise RuntimeError(
+                "Firefox root fallback was reaped but residual group could "
+                f"not be verified: {diagnostics}; "
+                f"group_error={group_error!r}; residual_error={error!r}") \
+                from error
+        if residual_group:
+            raise RuntimeError(
+                "Firefox root fallback was reaped but owned group remains: "
+                f"{diagnostics}; group_error={group_error!r}")
+
+    def wait_for_group(timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = max(0.0, deadline - time.monotonic())
+            if process.poll() is None and remaining > 0:
+                try:
+                    process.wait(timeout=min(0.05, remaining))
+                except subprocess.TimeoutExpired:
+                    pass
+            try:
+                alive = firefox_process_group_alive(pgid)
+            except RuntimeError:
+                # EPERM is not absence. Keep polling within the bound so a
+                # transient macOS exiting state can reach ESRCH; a persistent
+                # permission/live state is diagnosed by the signal/final path.
+                alive = True
+            if not alive and process.poll() is not None:
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.01)
+
+    # browser.close asks Firefox to shut down. Give that protocol request a
+    # bounded opportunity to remove the group cleanly before using signals.
+    if wait_for_group(grace_timeout):
+        process.wait(timeout=max(0.1, grace_timeout))
+        return
+
+    # Pinned Puppeteer uses direct whole-group SIGKILL on Darwin after its
+    # browser.close grace. If Darwin rejects the whole-group signal, mirror its
+    # root-PID SIGKILL fallback, then require both root reap and group absence.
+    if platform_name == "darwin":
+        group_error = signal_group(signal.SIGKILL)
+        if group_error is not None:
+            kill_root_after_group_failure(group_error)
+            return
+        if not wait_for_group(kill_timeout):
+            raise RuntimeError(
+                "owned Firefox process group remains after browser.close/KILL: "
+                f"{diagnostics}")
+    else:
+        term_error = signal_group(signal.SIGTERM)
+        if term_error is not None:
+            raise RuntimeError(
+                f"cannot signal owned Firefox process group {diagnostics}: "
+                f"{term_error}") from term_error
+        if not wait_for_group(term_timeout):
+            kill_error = signal_group(signal.SIGKILL)
+            if kill_error is not None:
+                raise RuntimeError(
+                    "cannot kill owned Firefox process group "
+                    f"{diagnostics}: {kill_error}") from kill_error
+            if not wait_for_group(kill_timeout):
+                raise RuntimeError(
+                    "owned Firefox process group remains after TERM/KILL: "
+                    f"{diagnostics}")
+    try:
+        process.wait(timeout=max(0.1, kill_timeout))
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"Firefox root process was not reaped: {diagnostics}") from error
+    try:
+        group_alive = firefox_process_group_alive(pgid)
+    except RuntimeError as error:
+        raise RuntimeError(
+            f"cannot verify Firefox process-group reap: {diagnostics}: "
+            f"{error}") from error
+    if group_alive:
+        raise RuntimeError(
+            f"owned Firefox process group remains after reap: {diagnostics}")
+
+
 class FirefoxBidiSession:
     """Small dependency-bounded WebDriver BiDi client for evidence capture."""
 
@@ -426,6 +595,8 @@ class FirefoxBidiSession:
         self._messages: list[dict[str, object]] = []
         self._next_id = 0
         self._process: subprocess.Popen[str] | None = None
+        self._pgid: int | None = None
+        self._log = None
         self._socket = None
         self.context = ""
         self.session_id = ""
@@ -440,14 +611,23 @@ class FirefoxBidiSession:
             shutil.rmtree(profile)
         profile.mkdir(parents=True)
         (profile / "user.js").write_text(
-            'user_pref("ui.prefersReducedMotion", 1);\n', encoding="utf-8")
+            'user_pref("ui.prefersReducedMotion", 1);\n',
+            encoding="utf-8")
         self._profile = profile
-        command = [str(locate_firefox()), "--headless", "--no-remote",
-                   "--profile", str(profile), "--remote-debugging-port",
-                   str(port), "about:blank"]
+        command = [str(locate_firefox())]
+        if sys.platform == "darwin":
+            # Keep the browser PID attached to this owned process session.
+            # Firefox's macOS automation launcher uses the same hidden flag.
+            command.append("--foreground")
+        command.extend(["--headless", "--no-remote", "--profile",
+                        str(profile), "--remote-debugging-port", str(port),
+                        "about:blank"])
+        self._log = (output / "phase6-firefox.log").open(
+            "w", encoding="utf-8")
         self._process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1)
+            command, stdout=self._log, stderr=subprocess.STDOUT,
+            text=True, bufsize=1, start_new_session=True)
+        self._pgid = self._process.pid
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             if self._process.poll() is not None:
@@ -560,20 +740,32 @@ class FirefoxBidiSession:
     def close(self) -> None:
         if self._socket is not None:
             try:
-                self.call("session.end", {})
+                # browser.close requests orderly browser termination. Firefox
+                # may close the transport before returning its success frame.
+                self.call("browser.close", {})
             except Exception:
                 pass
+        if self._process is not None:
+            if self._pgid is None or self._profile is None:
+                raise RuntimeError(
+                    "Firefox process ownership metadata is incomplete")
+            stop_firefox_process_group(
+                self._process, self._pgid, self._profile,
+                start_new_session=True)
+            self._process = None
+            self._pgid = None
+        if self._socket is not None:
             try:
                 self._socket.close()
             except Exception:
                 pass
             self._socket = None
-        if self._process is not None:
-            stop(self._process)
-            self._process = None
         if self._profile is not None and self._profile.is_dir():
             shutil.rmtree(self._profile)
         self._profile = None
+        if self._log is not None:
+            self._log.close()
+            self._log = None
 
     def __enter__(self):
         return self

@@ -383,15 +383,21 @@ namespace test {
             metrics_json["fields"] = nlohmann::json::array();
             metrics_json["fields"].push_back(nlohmann::json::object({
                 {"name", "produced_messages"},
-                {"type", "integer"},
+                {"type", "unsigned"},
                 {"description", "Number of messages produced by this source"},
-                {"unit", "count"}
+                {"unit", "messages"},
+                {"semantics", "monotonic_counter"},
+                {"aggregation", "rate"},
+                {"availability_rule", "latest_event"}
             }));
             metrics_json["fields"].push_back(nlohmann::json::object({
                 {"name", "throughput_mps"},
                 {"type", "number"},
                 {"description", "Messages produced per second"},
-                {"unit", "mps"}
+                {"unit", "messages/s"},
+                {"semantics", "gauge"},
+                {"aggregation", "average"},
+                {"availability_rule", "when_reported"}
             }));
             return app::metrics::NodeMetricsSchema{
                 .node_name = "SourceTestNode",
@@ -626,16 +632,22 @@ namespace test {
             nlohmann::json metrics_json = nlohmann::json::object();
             metrics_json["fields"] = nlohmann::json::array();
             metrics_json["fields"].push_back(nlohmann::json::object({
-                {"name", "consumed_messages"},
-                {"type", "integer"},
+                {"name", "consumed_count"},
+                {"type", "unsigned"},
                 {"description", "Number of messages consumed by this sink"},
-                {"unit", "count"}
+                {"unit", "messages"},
+                {"semantics", "monotonic_counter"},
+                {"aggregation", "rate"},
+                {"availability_rule", "latest_event"}
             }));
             metrics_json["fields"].push_back(nlohmann::json::object({
                 {"name", "throughput_mps"},
                 {"type", "number"},
                 {"description", "Messages consumed per second"},
-                {"unit", "mps"}
+                {"unit", "messages/s"},
+                {"semantics", "gauge"},
+                {"aggregation", "average"},
+                {"availability_rule", "when_reported"}
             }));
             return app::metrics::NodeMetricsSchema{
                 .node_name = "SinkTestNode",

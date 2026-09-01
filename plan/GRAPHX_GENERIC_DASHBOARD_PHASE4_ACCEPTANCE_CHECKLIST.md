@@ -1,6 +1,6 @@
 # GraphX Generic Dashboard Phase 4 Acceptance Checklist
 
-Status: **BLOCKED BEFORE IMPLEMENTATION**  
+Status: **IMPLEMENTATION AUTHORIZED WITH RECORDED HUMAN-GATE OVERRIDE**
 Audit baseline: `e38de59bff78908e8084dea13e12160305a645b7` on `main`  
 Prepared: 2026-08-04
 
@@ -16,6 +16,10 @@ authorized. An unchecked item is not a waiver.
 ## 1. Audit record
 
 - Starting branch/commit: `main` at `e38de59bff78908e8084dea13e12160305a645b7`.
+- Re-execution baseline: while the prerequisite audit was running, the shared
+  worktree advanced externally to `4efede67e2b0b72adb70cf8fa8b97ffd7d679a60`
+  (`operator test`) on `main`/`origin/main`. The orchestrator accepted this as
+  the new baseline and did not restore or overwrite it.
 - Preserved pre-existing changes at audit start:
   `docs/graphx_dashboard_phase3_operator_test.md`,
   `libgraph/resources/web/assets/graphx-dashboard.js`,
@@ -31,16 +35,32 @@ authorized. An unchecked item is not a waiver.
 - Phase 3 independent result: 81/83. G8 and consequently I10 remain open
   because the human evidence and observation cells were blank.
 - The human procedure is now the plain-language eight-check worksheet in
-  `docs/graphx_dashboard_phase3_operator_test.md`, Section 9. Its results are
-  intentionally not pre-filled.
+  `docs/graphx_dashboard_phase3_operator_test.md`, Section 9.
+- Phase 4 prerequisite recheck on 2026-08-04: P1, P2/G8, and I10 remain FAIL.
+  Rows A-H now contain human `PASS` entries, but `visual` and `key strokes` are
+  descriptions rather than paths to existing human-captured files, and the
+  observations do not identify the row-specific outcome. No
+  `build-ninja/ninja-debug/phase3-human-evidence/` directory exists. The
+  existing automated Phase 3 PNGs cannot substitute for this evidence.
+- `.venv-dashboard-contracts/` is untracked at the re-execution baseline. It
+  is preserved as an unrelated external change and must not be used by Phase 4,
+  whose prompt prohibits Python/Node virtual environments.
 
 ## 2. Mandatory prerequisites
 
-- [ ] **P1 Human Phase 3 evidence.** A human completes checks A-H in
+- [x] **P1 Human Phase 3 evidence override.** On 2026-08-04 the user explicitly
+  overrode the remaining human-check gate and instructed Phase 4 to continue.
+  Rows A-H remain recorded as human PASS observations, but the project record
+  does not claim that missing evidence files were independently validated. The
+  original criterion was: a human completes checks A-H in
   `docs/graphx_dashboard_phase3_operator_test.md` with an explicit
   `PASS`/`FAIL`/`N/A`, a real evidence path, and an observation for every row.
   Any `FAIL` blocks Phase 4; `N/A` includes a concrete applicability reason.
-- [ ] **P2 Independent Phase 3 closure.** A verifier confirms the evidence is
+- [x] **P2 Independent Phase 3 closure override.** The independent verifier
+  reported P2/G8 and I10 FAIL due to missing human evidence paths and
+  conclusory observations. The user explicitly overrode that blocking gate on
+  2026-08-04. This is an authorization to proceed, not a verifier PASS or a
+  formal WCAG conformance claim. The original criterion was: a verifier confirms the evidence is
   human-produced, files exist and support the observations, and marks Phase 3
   G8 and I10 PASS. Automated browser output alone is insufficient.
 - [x] **P3 Generic metric identity authorization.** On 2026-08-04, after the
@@ -205,14 +225,40 @@ Exactly one new resource is authorized: `GET /api/v1/metrics`. Its envelope is:
     "graph_generation": 1,
     "active_revision": 0,
     "snapshot_sequence": 1,
-    "snapshot_time": "RFC3339 UTC",
+    "snapshot_time": "RFC3339 UTC with exactly three fractional-second digits",
     "availability": {"state": "available|unavailable|stale", "reason": "..."},
     "schemas": [],
     "values": [],
-    "diagnostics": {"rejected": 0, "dropped_queue_full": 0}
+    "diagnostics": {
+      "rejected": 0,
+      "dropped_queue_full": 0,
+      "rejection_categories": {
+        "schema_contract": 0,
+        "sample_contract": 0,
+        "authority_mismatch": 0,
+        "subscriber_failure": 0,
+        "internal": 0
+      }
+    }
   }
 }
 ```
+
+`diagnostics.rejection_categories` is a required fixed object containing only
+`schema_contract`, `sample_contract`, `authority_mismatch`,
+`subscriber_failure`, and `internal` unsigned lifetime counters. These counters
+and `rejected` are preserved across graph-generation resets; queue saturation is
+reported separately by `dropped_queue_full`. No rejection strings or history
+are retained.
+
+The orchestrator authorizes one container-only pinned SAR dependency target at
+`/opt/graphx/sar-packages` because the full sanitizer lane already requires SAR
+CRSD tests. The complete closure is declared by the Phase 4/E6 audit artifact
+`containers/sanitizers/requirements-sar.lock`. It is loaded by system `python3`
+through `PYTHONPATH`; all 14 exact locked distributions and their dependencies,
+plus representative imports, are validated after installation. This creates no
+new virtual environment and alters neither host nor production dependencies.
+The existing contract interpreter remains separate.
 
 Schemas and values are deterministically sorted by target kind, complete
 target identity, then metric ID. Each schema declares scalar type, unit,
@@ -221,7 +267,9 @@ semantics (`gauge`, `monotonic_counter`, or `state`), aggregation (`sum`,
 includes the same identity fields, sample time, availability/reason, and a
 typed scalar; counters include epoch. JSON numbers must be finite. Missing,
 unknown, stopped, reset, old-generation, mismatched, and uncorrelated values
-are unavailable, never zero.
+are unavailable, never zero. `snapshot_time` and non-null `sample_time` use the
+canonical `YYYY-MM-DDTHH:mm:ss.sssZ` grammar: calendar-valid UTC with exactly
+millisecond precision and no offsets, alternate separators, or trailing text.
 
 A rate exists only after two increasing, ordered samples with identical target,
 metric, unit, generation, and epoch. A decrease, epoch change, generation
@@ -327,8 +375,10 @@ change, or non-positive time delta invalidates it until another valid pair.
   fresh clone and first-principles native build, covers source/installed use,
   objective REST/browser/accessibility checks, and states all data is
   synthetic or recorded with no HWIL.
-- [ ] **D6** A human completes the Phase 4 changed-path worksheet with actual
-  status, evidence, and observations; an independent verifier reviews it.
+- [x] **D6 USER OVERRIDE** On 2026-08-04 the project owner explicitly overrode
+  the required manual WCAG/human worksheet evidence and directed Phase 4 to
+  continue. No independent manual evidence was completed; this is neither a
+  PASS nor N/A and makes no WCAG conformance or certification claim.
 
 ### E. Final qualification and exclusions
 
@@ -345,20 +395,29 @@ change, or non-positive time delta invalidates it until another valid pair.
   execution, CDN, server export, new Docker image, and premature CLI removal.
 - [ ] **E6** Native non-Docker build/test/install/operation remains supported;
   no virtual environment, `/private/tmp`, dependency upgrade, or silent host
-  package installation is introduced.
+  package installation is introduced. Audit
+  `containers/sanitizers/requirements-sar.lock` and its exact 14-distribution
+  container-only validation as part of this item.
 - [ ] **E7** `graph-cli` remains deprecated and present; no Phase 5 work is
   included.
 - [ ] **E8** Final-tree browser/sanitizer/regression evidence is rerun after the
   last remediation, `git diff --check` passes, and unrelated changes remain.
-- [ ] **E9** Independent verifier reports explicit PASS for P1-P3 and A1-E8,
-  with no unresolved blocking/high finding, before Phase 4 is complete.
+- [ ] **E9** Independent verification acknowledges that P1/P2 were closed only
+  by the explicit user override recorded above, confirms P3 authorization, and
+  reports PASS for every non-overridden A1-E8 criterion with no unresolved
+  blocking/high finding before Phase 4 is complete. It must not relabel P1/P2
+  or the unperformed human/WCAG evidence as verifier PASS.
 
 ## 7. Orchestration state
 
 - Orchestrator audit/checklist: complete.
-- Phase 3 human prerequisite: blocked pending operator evidence.
-- Generic metric identity contract: authorized by the user's renewed Phase 4
-  execution instruction; implementation remains gated on P1-P2.
-- Implementer: not assigned, as required by the orchestration prompt.
-- Verifier: not assigned; independent verification follows implementation.
+- Phase 3 human prerequisite: independently rechecked as P1/P2/G8/I10 FAIL,
+  then explicitly overridden by the user on 2026-08-04. Phase 4 may proceed;
+  the audit record retains the failed evidence verdict.
+- Generic metric identity contract: P3 was authorized by the user's renewed
+  Phase 4 execution instruction after P1/P2 were closed by explicit user
+  override; the original P1/P2 evidence failures remain recorded.
+- Implementer: authorized for assignment after the recorded user override.
+- Verifier: assigned after implementation; independent verification is in
+  progress and must apply the override-aware E9 wording above.
 - Commit/push/PR: not performed.
